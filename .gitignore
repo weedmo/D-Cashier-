@@ -178,6 +178,8 @@ pyrightconfig.json
 ### ROS ###
 devel/
 logs/
+log/
+install/
 bin/
 msg_gen/
 srv_gen/
