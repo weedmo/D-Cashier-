@@ -11,10 +11,10 @@ from ultralytics import YOLO
 import numpy as np
 
 
-PACKAGE_NAME = "pick_and_place_text"
+PACKAGE_NAME = "OBB"
 PACKAGE_PATH = get_package_share_directory(PACKAGE_NAME)
 
-YOLO_MODEL_FILENAME = "mart_object_v2.pt"
+YOLO_MODEL_FILENAME = "obj_detect_obb.pt"
 
 YOLO_MODEL_PATH = os.path.join(PACKAGE_PATH, "resource", YOLO_MODEL_FILENAME)
 

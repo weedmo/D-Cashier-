@@ -5,10 +5,10 @@ from typing import Any
 
 from ament_index_python.packages import get_package_share_directory
 from msgs.srv import ObjectInformation
-from object_detection.realsense import ImgNode
-from object_detection.yolo import YoloModel
+from OBB.realsense import ImgNode
+from OBB.yolo import YoloModel
 
-PACKAGE_NAME = 'msgs'
+PACKAGE_NAME = 'OBB'
 PACKAGE_PATH = get_package_share_directory(PACKAGE_NAME)
 
 
@@ -24,10 +24,10 @@ class ObjectDetectionNode(Node):
 
         self.create_service(
             ObjectInformation,
-            'get_3d_position',
+            'obj_detect',
             self.handle_get_depth
         )
-        self.get_logger().info("Service 'get_3d_position' ready.")
+        self.get_logger().info("Service 'obj_detect' ready.")
 
     def _load_model(self, name):
         """모델 이름에 따라 인스턴스를 반환합니다."""
