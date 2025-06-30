@@ -22,6 +22,8 @@ from ament_index_python.packages import get_package_share_directory
 
 # 커스텀 서비스
 from msgs.srv import ObjectInformation
+
+from robot_api_control.transformation import Transformation
 # Doosan API
 import DR_init
 from robot_api_control.onrobot import RG
@@ -31,6 +33,8 @@ ROBOT_ID, ROBOT_MODEL = "dsr01", "m0609"
 VELOCITY = ACC = 100
 GRIPPER_NAME = "rg2"
 TOOLCHARGER_IP, TOOLCHARGER_PORT = "192.168.1.1", "502"
+DEPTH_OFFSET = -5.0
+MIN_DEPTH = 2.0
 
 # ─── DSR 초기화 ───────────────────────────
 DR_init.__dsr__id = ROBOT_ID
@@ -47,7 +51,8 @@ try:
         mwait,
         get_tool,
         get_tcp,
-        DR_BASE
+        DR_BASE,
+        get_current_posx
     )
 except ImportError as e:
     print(f"Error importing DSR_ROBOT2: {e}")
@@ -63,11 +68,18 @@ def _latched_qos(depth: int = 1) -> QoSProfile:
         reliability=QoSReliabilityPolicy.RELIABLE,
         durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
     )
-    
+
+pkg_path = get_package_share_directory('OBB')
 # ─── 메인 노드 ────────────────────────────
 class RobotController(Node):
     def __init__(self):
         super().__init__("main_controller_node")
+        
+        # ─ 좌표 변환 유틸 준비
+        self.gripper2cam_path = os.path.join(
+            pkg_path, "resource", "T_gripper2camera.npy"
+        )
+        self.tf = Transformation(self.gripper2cam_path)
 
         # 1. 키워드 서비스
         self.get_keyword_client = self.create_client(Trigger, "/get_keyword")
@@ -93,7 +105,8 @@ class RobotController(Node):
         )
         
         self.init_robot()
-
+        
+    ## 로봇 구동 ##
     # -----------------------------------------------------
     # 로봇 초기 자세 + 그리퍼 open
     def init_robot(self):
@@ -101,15 +114,55 @@ class RobotController(Node):
         movej(J_READY, vel=VELOCITY, acc=ACC)
         gripper.open_gripper()
         mwait()
+        
+    def get_target_pos(self, target_coords, robot_posx=None):
+        """
+        target_coords: 카메라 좌표계 기준의 3D 좌표 [x, y, z]
+        robot_posx: 로봇의 현재 posx. 미지정 시 자동으로 읽음.
+        return: 로봇 베이스 좌표계 기준의 6D 위치 (pick posx)
+        """
+        if robot_posx is None:
+            robot_posx = get_current_posx()[0]  # [x, y, z, rx, ry, rz]
 
+        td_coord = self.tf.camera_to_base(target_coords, robot_posx)
+
+        if td_coord[2] and sum(td_coord) != 0:
+            td_coord[2] += DEPTH_OFFSET
+            td_coord[2] = max(td_coord[2], MIN_DEPTH)
+
+        target_pos = list(td_coord[:3]) + robot_posx[3:]
+        return target_pos
+
+        
+    # Pick & Place
+    def pick_and_place(self, posx, yaw):
+        robot_posx = get_current_posx()[0]
+        target_coords  = posx[:3]
+        target_pos = self.get_target_pos(target_coords, robot_posx)
+        target_pos[3] = yaw
+        movel(target_pos, vel=VELOCITY, acc=ACC, ref=DR_BASE)
+        mwait()
+        gripper.close_gripper()
+        while gripper.get_status()[0]:
+            time.sleep(0.2)
+
+        # 임의 버킷 위치 예시 (x,y,z,yaw 고정)
+        BUCKET_POS = [647.10, 74.75, 109.83, 174.23, 179.03, -157.62]
+        movel(BUCKET_POS, vel=VELOCITY, acc=ACC, ref=DR_BASE)
+        mwait()
+        gripper.open_gripper()
+        while gripper.get_status()[0]:
+            time.sleep(0.2)
+            
     # -----------------------------------------------------
+    
     # 객체 검출 서비스 호출
     def call_obj_detect(self, enable: bool):
         self.obj_req.state_main = enable
         future = self.obj_detect_client.call_async(self.obj_req)
         rclpy.spin_until_future_complete(self, future)
         return future.result()
-
+    
     # -----------------------------------------------------
     # 메인 파이프라인
     def main_pipeline(self):
@@ -147,9 +200,8 @@ class RobotController(Node):
                 x, y, z, yaw = resp.position
                 self.get_logger().info(f"📍 좌표: {resp.position} (개수 {resp.nums}) 이름: {class_name}")
                 
-                roll, pitch = 180.0, 0.0
-                target_pos = [x, y, z, roll, pitch, yaw]
-                self.pick_and_place(target_pos)
+                target_pos = [x, y, z]
+                self.pick_and_place(target_pos, yaw)
                 
                 # pub class_name
                 self.class_pub.publish(String(data=class_name))
@@ -158,25 +210,6 @@ class RobotController(Node):
                     self.call_obj_detect(True)
 
             return  # 계산 작업 끝나면 함수 종료
-
-    # -----------------------------------------------------
-    # Pick & Place
-    def pick_and_place(self, posx):
-        posx = [-2.379013042501377, 19.127790312446162, 305.0, 180.0, 0.0, 1.4959075938571582]
-
-        movel(posx, vel=VELOCITY, acc=ACC, ref=DR_BASE)
-        mwait()
-        gripper.close_gripper()
-        while gripper.get_status()[0]:
-            time.sleep(0.2)
-
-        # 임의 버킷 위치 예시 (x,y,z,yaw 고정)
-        BUCKET_POS = [647.10, 74.75, 109.83, 174.23, 179.03, -157.62]
-        movel(BUCKET_POS, vel=VELOCITY, acc=ACC, ref=DR_BASE)
-        mwait()
-        gripper.open_gripper()
-        while gripper.get_status()[0]:
-            time.sleep(0.2)
 
 # ─── main ────────────────────────────────
 def main():
