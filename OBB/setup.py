@@ -24,6 +24,7 @@ setup(
     entry_points={
         'console_scripts': [
             'detection = OBB.detection:main',
+            'is_adult = OBB.adult_check_face:main'
         ],
     },
 )
