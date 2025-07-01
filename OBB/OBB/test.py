@@ -6,7 +6,7 @@ from ultralytics import YOLO
 model = YOLO("/home/jsbae/ros2_ws/src/OBB/resource/obj_detect_obb.pt")
 
 # Open the video file
-video_path = 0
+video_path = 6
 cap = cv2.VideoCapture(video_path)
 
 # Loop through the video frames
