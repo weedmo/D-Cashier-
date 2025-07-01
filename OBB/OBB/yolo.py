@@ -75,14 +75,14 @@ class YoloModel:
     def _aggregate_detections(self, results, confidence_threshold=0.5, iou_threshold=0.5):
         """
         Fuse raw OBB detection boxes across frames using IoU-based grouping
-        and majority voting for robust final detections.
+        and robust angle averaging.
 
         results: list of YOLO OBB result objects
         """
         raw = []
         for res in results:
             for box, score, label in zip(
-                res.obb.xywhr.tolist(),   # [cx, cy, w, h, rad]
+                res.obb.xywhr.tolist(),  # [cx, cy, w, h, rad]
                 res.obb.conf.tolist(),
                 res.obb.cls.tolist(),
             ):
@@ -106,9 +106,21 @@ class YoloModel:
             boxes = np.array([g["box"] for g in group])
             labels = [g["label"] for g in group]
 
+            # 평균 위치와 크기
+            cx_mean = boxes[:, 0].mean()
+            cy_mean = boxes[:, 1].mean()
+            w_mean = boxes[:, 2].mean()
+            h_mean = boxes[:, 3].mean()
+
+            # yaw (rad) 평균 (sin/cos 방식)
+            angles = boxes[:, 4]
+            sin_sum = np.sin(angles).mean()
+            cos_sum = np.cos(angles).mean()
+            avg_angle = np.arctan2(sin_sum, cos_sum)
+
             final.append(
                 {
-                    "box": boxes.mean(axis=0).tolist(),
+                    "box": [cx_mean, cy_mean, w_mean, h_mean, avg_angle],
                     "label": Counter(labels).most_common(1)[0][0],
                 }
             )

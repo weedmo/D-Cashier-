@@ -1,21 +1,7 @@
-'''
-sudo apt install fonts-nanum
-pip install scikit-image
-pip install easyocr
-sudo apt update
-sudo apt install -y cmake build-essential python3-dev
-pip install dlib
-sudo apt install -y libboost-all-dev # dlib 설치중 에러날 경우 사용
-pip install face_recognition
-pip install easyocr
-pip install pillow opencv-python scikit-image
-
-'''
-
-
 import rclpy
 from rclpy.node import Node
 from msgs.srv import AdultEvent
+from std_msgs.msg import Int32 # 1이면 인증성공, 0이면 인증실패
 
 import cv2
 import numpy as np
@@ -34,33 +20,48 @@ class IDVerificationNode(Node):
         self.srv = self.create_service(AdultEvent, 'adult_event', self.verify_callback)
         self.get_logger().info("✅ ID Verification Service Node is ready.")
         self.reader = easyocr.Reader(['ko'], gpu=False, verbose=False)
+
         self.cap = cv2.VideoCapture(0)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
+        if not self.cap.isOpened():
+            self.get_logger().error("❌ 카메라를 열 수 없습니다. 종료합니다.")
+            exit(1)
+
         self.roi_x, self.roi_y, self.roi_w, self.roi_h = 440, 160, 400, 250
 
+        self.result_pub = self.create_publisher(Int32, "/adult_check_result", 10)
+
     def verify_callback(self, request, response):
-        self.get_logger().info(f"📨 Received request: {request.request}")
+        self.get_logger().info(f"📨 Received request: {request.class_name}")
 
-        while True:
-            if self.run_id_ocr_stage():
-                time.sleep(1)
-                if self.run_face_verification_stage():
-                    response.result = True
-                    break
-                else:
-                    continue
+        response.state_adult_event = False  # 기본값
+
+        ocr_result = self.run_id_ocr_stage()
+
+        if ocr_result == "success":
+            time.sleep(5)
+            face_success = self.run_face_verification_stage()
+            if face_success:
+                response.state_adult_event = True
+                self.get_logger().info("✅ 모든 인증 단계 완료. 성인 인증 성공.")
+                self.result_pub.publish(Int32(data=1))  # ✅ 성공 시 1
             else:
-                continue
+                response.state_adult_event = False
+                self.get_logger().warn("⚠️ 얼굴 인증 실패. 응답 후 다음 요청 대기.")
+                self.result_pub.publish(Int32(data=0))  # ✅ 실패 시 0
+            return response
 
-        self.cap.release()
-        # if os.path.exists("temp_roi.png"):
-        #     os.remove("temp_roi.png")
-        if os.path.exists("temp_id_face.png"):
-            os.remove("temp_id_face.png")
+        elif ocr_result == "minor":
+            self.get_logger().warn("⚠️ 미성년자로 판별되었습니다. 인증 실패.")
+            self.result_pub.publish(Int32(data=0))  # ✅ 실패 시 0
+            return response
 
-        return response
+        else:
+            self.get_logger().warn("⚠️ OCR 단계 실패. 주민번호 추출 실패 등.")
+            self.result_pub.publish(Int32(data=0))  # ✅ 실패 시 0
+            return response
 
     def preprocess_image(self, frame):
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(32, 32))
@@ -107,10 +108,13 @@ class IDVerificationNode(Node):
 
     def run_id_ocr_stage(self):
         ret, frame = self.cap.read()
+        if not ret:
+            self.get_logger().error("❌ 카메라 프레임을 읽을 수 없습니다. 종료합니다.")
+            return "fail"
+
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         baseline_roi = gray[self.roi_y:self.roi_y + self.roi_h, self.roi_x:self.roi_x + self.roi_w]
         baseline_original = baseline_roi.copy()
-        self.get_logger().info("✅ Baseline ROI 캡처 완료!")
         hold_start_time = None
 
         while True:
@@ -119,57 +123,68 @@ class IDVerificationNode(Node):
                 continue
 
             original_frame = frame.copy()
-            cv2.rectangle(frame, (self.roi_x, self.roi_y), (self.roi_x + self.roi_w, self.roi_y + self.roi_h), (0, 255, 0), 2)
-            frame = self.draw_korean_text(frame, "신분증을 박스에 위치시키고 2초간 대기", (self.roi_x - 150, self.roi_y - 50), 30)
-
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             current_roi = gray[self.roi_y:self.roi_y + self.roi_h, self.roi_x:self.roi_x + self.roi_w]
             score, _ = ssim(baseline_original, current_roi, full=True)
 
-            if score < 0.65:
-                self.get_logger().info(f"score : {score}")
+            if score < 0.68:
                 if hold_start_time is None:
                     hold_start_time = time.time()
                 elif time.time() - hold_start_time >= 2.0:
-                    # cv2.imwrite("temp_roi.png", current_roi)
+                    cv2.imwrite("temp_roi.png", current_roi)
                     cv2.imwrite("temp_id_face.png", original_frame[self.roi_y:self.roi_y + self.roi_h, self.roi_x:self.roi_x + self.roi_w])
 
-                    # ocr_img = cv2.imread("temp_roi.png", cv2.IMREAD_GRAYSCALE)
-                    ocr_img = cv2.cvtColor(current_roi, cv2.COLOR_BGR2GRAY)
+                    ocr_img = cv2.imread("temp_roi.png", cv2.IMREAD_GRAYSCALE)
                     processed = self.preprocess_image(ocr_img)
                     results = self.reader.readtext(processed, detail=0, paragraph=False)
                     full_text = ' '.join(results)
 
                     birth_num, code = self.extract_rrn(full_text)
-                    if birth_num and code and self.is_adult(birth_num, code):
-                        return True
-                    else:
+
+                    if not (birth_num and code):
+                        self.get_logger().error("❌ 주민번호 추출 실패. OCR 재시도 중...")
                         hold_start_time = None
+                        continue
+
+                    if self.is_adult(birth_num, code):
+                        self.get_logger().info("✅ 성인입니다. 얼굴 인증을 위해 준비할 시간을 제공합니다.")
+                        frame = self.draw_korean_text(frame, "성인, 얼굴 인증을 위해 준비할 시간을 제공", (100, 200), 32, color=(0, 255, 0))
+                        time.sleep(5)
+                        cv2.destroyAllWindows()  # ✅ OCR 창 닫기
+                        return "success"
+                    else:
+                        self.get_logger().warn("⚠️ 미성년자로 판별되었습니다. 인증 실패.")
+                        cv2.destroyAllWindows()  # ✅ OCR 창 닫기
+                        return "minor"
             else:
                 hold_start_time = None
 
-            cv2.imshow("ID Verification", frame)
-            if cv2.waitKey(1) == 27:
-                cv2.destroyAllWindows()
-                return False
+            display_frame = frame.copy()
+            cv2.rectangle(display_frame, (self.roi_x, self.roi_y), (self.roi_x + self.roi_w, self.roi_y + self.roi_h), (0, 255, 0), 2)
+            display_frame = self.draw_korean_text(display_frame, "신분증을 박스에 위치시키고 대기 중...", (self.roi_x - 150, self.roi_y - 50), 30)
+            cv2.imshow("ID Verification", display_frame)
+            cv2.waitKey(30)
 
     def run_face_verification_stage(self):
-        id_face_encoding = None
-
         id_face_img = cv2.imread("temp_id_face.png")
+        if id_face_img is None:
+            self.get_logger().error("❌ temp_id_face.png 파일을 읽지 못했습니다.")
+            return False
+
         id_face_locations = face_recognition.face_locations(id_face_img)
         id_face_encodings = face_recognition.face_encodings(id_face_img, id_face_locations)
 
-        if id_face_encodings:
-            id_face_encoding = id_face_encodings[0]
-        else:
+        if not id_face_encodings:
+            self.get_logger().error("❌ 신분증에서 얼굴을 찾을 수 없습니다. 인증 실패.")
             return False
+
+        id_face_encoding = id_face_encodings[0]
 
         while True:
             ret, frame = self.cap.read()
             if not ret:
                 continue
 
-            frame = self.draw_korean_text(frame, "얼굴을 인식시켜 주세요.", (400, 50), 32)
             live_face_locations = face_recognition.face_locations(frame)
             live_face_encodings = face_recognition.face_encodings(frame, live_face_locations)
 
@@ -182,19 +197,30 @@ class IDVerificationNode(Node):
                     cv2.destroyAllWindows()
                     return True
                 else:
-                    frame = self.draw_korean_text(frame, "얼굴 불일치. 다시 시도하세요.", (300, 400), 32, color=(0, 0, 255))
+                    self.get_logger().warn("⚠️ 얼굴 불일치. 인증 실패. 응답 후 다음 요청 대기.")
+                    frame = self.draw_korean_text(frame, "얼굴 불일치. 인증 실패.", (300, 400), 32, color=(0, 0, 255))
+                    cv2.imshow("Face Verification", frame)
+                    cv2.waitKey(2000)
+                    cv2.destroyAllWindows()
+                    return False
 
-            cv2.imshow("Face Verification", frame)
-            if cv2.waitKey(1) == 27:
-                cv2.destroyAllWindows()
-                return False
+            display_frame = self.draw_korean_text(frame, "얼굴을 인식 중...", (400, 50), 32)
+            cv2.imshow("Face Verification", display_frame)
+            cv2.waitKey(30)
+
+    def destroy_node(self):
+        if self.cap.isOpened():
+            self.cap.release()
+        super().destroy_node()
 
 def main(args=None):
     rclpy.init(args=args)
     node = IDVerificationNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.spin(node)
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

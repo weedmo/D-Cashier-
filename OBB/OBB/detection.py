@@ -59,7 +59,7 @@ class ObjectDetectionNode(Node):
             self.get_logger().info(f"Detected {terra_count} terra object(s). Starting verification.")
 
             req = AdultEvent.Request()
-            req.request = "start"
+            req.class_name = "start"
             future = self.verify_cli.call_async(req)
 
             while rclpy.ok():
@@ -83,9 +83,9 @@ class ObjectDetectionNode(Node):
             admin_event = 2
 
         # 이후 position 계산 진행
-        coords, radian, num_classes, class_name = self._compute_position()
+        coords, radian, num_classes, class_name, min_size = self._compute_position()
 
-        response.position = [float(x) for x in coords] + [float(radian)]
+        response.position = [float(x) for x in coords] + [float(radian), float(min_size)]
         response.nums = num_classes
         response.class_name = class_name
         response.admin_event = admin_event
@@ -121,8 +121,9 @@ class ObjectDetectionNode(Node):
             num_classes = len(set([d["label"] for d in detections]))
             radian = box[4]
             camera_coords = self._pixel_to_camera_coords(cx, cy, cz)
+            min_size = min(box[2], box[3])  # width와 height 중 작은 값
 
-            return camera_coords, radian, num_classes, label
+            return camera_coords, radian, num_classes, label, min_size
 
     def _get_depth(self, x, y):
         frame = self._wait_for_valid_data(self.img_node.get_depth_frame, "depth frame")
