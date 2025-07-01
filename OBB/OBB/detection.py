@@ -38,9 +38,9 @@ class ObjectDetectionNode(Node):
     def handle_get_depth(self, request, response):
         """클라이언트 요청을 처리해 3D 좌표를 반환합니다."""
         self.get_logger().info(f"Received request: {request}")
-        coords, radian, num_classes, class_name = self._compute_position()
+        coords, radian, num_classes, class_name, min_size = self._compute_position()
 
-        response.position = [float(x) for x in coords] + [float(radian)]
+        response.position = [float(x) for x in coords] + [float(radian), float(min_size)]
         response.nums = num_classes
         response.class_name = class_name
 
@@ -81,8 +81,14 @@ class ObjectDetectionNode(Node):
             num_classes = len(set([d["label"] for d in detections]))
             radian = box[4]
             camera_coords = self._pixel_to_camera_coords(cx, cy, cz)
+            
+            # 1. min_size를 실세계 거리로 변환 (단위: mm)
+            fx = self.intrinsics['fx']  # focal length in pixels
+            min_px = min(box[2], box[3])  # width or height in pixels
+            min_size = (min_px * cz) / fx  # 단위: mm
 
-            return camera_coords, radian, num_classes, label
+            
+            return camera_coords, radian, num_classes, label, min_size
 
     def _get_depth(self, x, y):
         """픽셀 좌표의 depth 값을 안전하게 읽어옵니다."""

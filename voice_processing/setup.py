@@ -15,7 +15,6 @@ setup(
         ('share/' + package_name, ['voice_processing/wakeup_word.py']),
         ('share/' + package_name, ['package.xml']),
     ],
-
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='rokey',

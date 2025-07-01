@@ -33,9 +33,10 @@ ROBOT_ID, ROBOT_MODEL = "dsr01", "m0609"
 VELOCITY = ACC = 100
 GRIPPER_NAME = "rg2"
 TOOLCHARGER_IP, TOOLCHARGER_PORT = "192.168.1.1", "502"
-DEPTH_OFFSET = -40.0
+DEPTH_OFFSET = -20.0
 MIN_DEPTH = 2.0
-YAW_OFFSET = 20
+YAW_OFFSET = 90
+GRIP_OFFSET = 200
 
 # ─── DSR 초기화 ───────────────────────────
 DR_init.__dsr__id = ROBOT_ID
@@ -124,25 +125,6 @@ class RobotController(Node):
         movej(J_READY, vel=VELOCITY, acc=ACC)
         gripper.open_gripper()
         mwait()
-        
-    # def get_target_pos(self, target_coords, robot_posx=None):
-    #     """
-    #     target_coords: 카메라 좌표계 기준의 3D 좌표 [x, y, z]
-    #     robot_posx: 로봇의 현재 posx. 미지정 시 자동으로 읽음.
-    #     return: 로봇 베이스 좌표계 기준의 6D 위치 (pick posx)
-    #     """
-    #     if robot_posx is None:
-    #         robot_posx = get_current_posx()[0]  # [x, y, z, rx, ry, rz]
-
-    #     td_pos = self.tf.camera_to_base(target_coords[:3], robot_posx)
-    #     td_yaw = self.tf.camera_yaw_to_base(np.degrees(target_coords[3]), robot_posx)
-    #     td_coord = list(td_pos) + list(td_yaw)
-        
-    #     if td_coord[2] and sum(td_coord) != 0:
-    #         td_coord[2] += DEPTH_OFFSET
-    #         td_coord[2] = max(td_coord[2], MIN_DEPTH)
-
-    #     return td_coord
     
     def get_target_pos(self, target_coords):
         """
@@ -162,13 +144,18 @@ class RobotController(Node):
         return obj_pos
     
     # Pick & Place
-    def pick_and_place(self, posx):
+    def pick_and_place(self, posx:list, min_size:float):
 
         movel(posx, vel=VELOCITY, acc=ACC, ref=DR_BASE)
-        mwait()
-        gripper.close_gripper()
-        while gripper.get_status()[0]:
+        # mwait()
+        
+        gripper.move_gripper(
+            width_val=max(int(min_size * 10)-GRIP_OFFSET, 50), 
+            force_val=200)
+        # ✅ 그리퍼 동작 완료 대기
+        while gripper.get_status()[0]:  # busy flag = 1 → 동작 중
             time.sleep(0.2)
+        mwait()  # 로봇 모션 안정화
 
         # 위로 올라가기 
         up_pos = posx.copy()
@@ -204,6 +191,8 @@ class RobotController(Node):
     # -----------------------------------------------------
     # 메인 파이프라인
     def main_pipeline(self):
+        
+        self.init_robot()
         # 1) 음성→키워드
         self.get_logger().info("🎤 Say 'Hello Rokey' 그리고 물체 이름을 말하세요.")
         kw_future = self.get_keyword_client.call_async(self.keyword_req)
@@ -236,12 +225,14 @@ class RobotController(Node):
 
                 class_name = resp.class_name
                 target_coords = list(resp.position)
+                min_size = target_coords.pop()
+                
                 self.get_logger().info(f"📍 좌표: {resp.position} (개수 {resp.nums}) 이름: {class_name}")
                 #robot_posx = get_current_posx()[0]
                 
                 target_pos = self.get_target_pos(target_coords)
                 # target_pos[-1] = np.degrees(yaw)
-                self.pick_and_place(target_pos)
+                self.pick_and_place(target_pos, min_size)
                 
                 # pub class_name
                 self.class_pub.publish(String(data=class_name))
