@@ -1,7 +1,7 @@
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from typing import Any
+from rclpy.executors import MultiThreadedExecutor
 
 from ament_index_python.packages import get_package_share_directory
 from msgs.srv import ObjectInformation
@@ -156,8 +156,13 @@ class ObjectDetectionNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = ObjectDetectionNode()
+
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
+    executor.add_node(node.img_node)
+
     try:
-        rclpy.spin(node)
+        executor.spin()
     finally:
         node.destroy_node()
         rclpy.shutdown()
