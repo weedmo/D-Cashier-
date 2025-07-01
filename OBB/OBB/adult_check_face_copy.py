@@ -81,7 +81,7 @@ def run_id_ocr_stage(cap, roi_x, roi_y, roi_w, roi_h, reader):
         score, _ = ssim(baseline_original, current_roi, full=True)
         print(score)
 
-        if score < 0.68:
+        if score < 0.70:
             if hold_start_time is None:
                 hold_start_time = time.time()
             else:

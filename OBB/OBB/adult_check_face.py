@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
 from msgs.srv import AdultEvent
 from std_msgs.msg import Int32 # 1이면 인증성공, 0이면 인증실패
 
@@ -13,6 +14,13 @@ import face_recognition
 from skimage.metrics import structural_similarity as ssim
 from PIL import ImageFont, ImageDraw, Image
 import os
+
+def _latched_qos(depth: int = 1) -> QoSProfile:
+    return QoSProfile(
+        depth=depth,
+        reliability=QoSReliabilityPolicy.RELIABLE,
+        durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+    )
 
 class IDVerificationNode(Node):
     def __init__(self):
@@ -31,7 +39,7 @@ class IDVerificationNode(Node):
 
         self.roi_x, self.roi_y, self.roi_w, self.roi_h = 440, 160, 400, 250
 
-        self.result_pub = self.create_publisher(Int32, "/adult_check_result", 10)
+        self.result_pub = self.create_publisher(Int32, "/adult_check_result", _latched_qos())
 
     def verify_callback(self, request, response):
         self.get_logger().info(f"📨 Received request: {request.class_name}")
