@@ -29,6 +29,8 @@ setup(
     entry_points={
         'console_scripts': [
             'main_controller = robot_api_control.main_controller:main',
+            'home = robot_api_control.move_home:main',
+            
         ],
     },
 )

@@ -33,8 +33,9 @@ ROBOT_ID, ROBOT_MODEL = "dsr01", "m0609"
 VELOCITY = ACC = 100
 GRIPPER_NAME = "rg2"
 TOOLCHARGER_IP, TOOLCHARGER_PORT = "192.168.1.1", "502"
-DEPTH_OFFSET = -5.0
+DEPTH_OFFSET = -40.0
 MIN_DEPTH = 2.0
+YAW_OFFSET = 20
 
 # ─── DSR 초기화 ───────────────────────────
 DR_init.__dsr__id = ROBOT_ID
@@ -52,7 +53,16 @@ try:
         get_tool,
         get_tcp,
         DR_BASE,
-        get_current_posx
+        get_current_posx,
+        
+        # force control
+        task_compliance_ctrl,
+        release_force,
+        check_force_condition,
+        DR_FC_MOD_REL,
+        set_desired_force,
+        release_compliance_ctrl,
+        DR_AXIS_Z
     )
 except ImportError as e:
     print(f"Error importing DSR_ROBOT2: {e}")
@@ -115,40 +125,68 @@ class RobotController(Node):
         gripper.open_gripper()
         mwait()
         
-    def get_target_pos(self, target_coords, robot_posx=None):
+    # def get_target_pos(self, target_coords, robot_posx=None):
+    #     """
+    #     target_coords: 카메라 좌표계 기준의 3D 좌표 [x, y, z]
+    #     robot_posx: 로봇의 현재 posx. 미지정 시 자동으로 읽음.
+    #     return: 로봇 베이스 좌표계 기준의 6D 위치 (pick posx)
+    #     """
+    #     if robot_posx is None:
+    #         robot_posx = get_current_posx()[0]  # [x, y, z, rx, ry, rz]
+
+    #     td_pos = self.tf.camera_to_base(target_coords[:3], robot_posx)
+    #     td_yaw = self.tf.camera_yaw_to_base(np.degrees(target_coords[3]), robot_posx)
+    #     td_coord = list(td_pos) + list(td_yaw)
+        
+    #     if td_coord[2] and sum(td_coord) != 0:
+    #         td_coord[2] += DEPTH_OFFSET
+    #         td_coord[2] = max(td_coord[2], MIN_DEPTH)
+
+    #     return td_coord
+    
+    def get_target_pos(self, target_coords):
         """
-        target_coords: 카메라 좌표계 기준의 3D 좌표 [x, y, z]
-        robot_posx: 로봇의 현재 posx. 미지정 시 자동으로 읽음.
+        target_coords: 카메라 좌표계 기준의 3D 좌표 [x, y, z, yaw]
         return: 로봇 베이스 좌표계 기준의 6D 위치 (pick posx)
         """
-        if robot_posx is None:
-            robot_posx = get_current_posx()[0]  # [x, y, z, rx, ry, rz]
-
-        td_coord = self.tf.camera_to_base(target_coords, robot_posx)
-
-        if td_coord[2] and sum(td_coord) != 0:
-            td_coord[2] += DEPTH_OFFSET
-            td_coord[2] = max(td_coord[2], MIN_DEPTH)
-
-        target_pos = list(td_coord[:3]) + robot_posx[3:]
-        return target_pos
-
+        target_coords[-1] = np.degrees(target_coords[-1])
+        robot_base = get_current_posx()[0]
         
+        obj_pos = self.tf.obj_pose_in_base(robot_base, target_coords)
+        
+        if obj_pos[2] and sum(obj_pos) != 0:
+            obj_pos[2] += DEPTH_OFFSET
+            obj_pos[2] = max(obj_pos[2], MIN_DEPTH)
+        
+        obj_pos[-1] += YAW_OFFSET
+        return obj_pos
+    
     # Pick & Place
-    def pick_and_place(self, posx, yaw):
-        robot_posx = get_current_posx()[0]
-        target_coords  = posx[:3]
-        target_pos = self.get_target_pos(target_coords, robot_posx)
-        target_pos[3] = yaw
-        movel(target_pos, vel=VELOCITY, acc=ACC, ref=DR_BASE)
+    def pick_and_place(self, posx):
+
+        movel(posx, vel=VELOCITY, acc=ACC, ref=DR_BASE)
         mwait()
         gripper.close_gripper()
         while gripper.get_status()[0]:
             time.sleep(0.2)
 
+        # 위로 올라가기 
+        up_pos = posx.copy()
+        up_pos[2] += 100
+        movel(up_pos, vel=VELOCITY, acc=ACC, ref=DR_BASE)
+        
         # 임의 버킷 위치 예시 (x,y,z,yaw 고정)
-        BUCKET_POS = [647.10, 74.75, 109.83, 174.23, 179.03, -157.62]
+        BUCKET_POS = [647.10, 74.75, 200, 174.23, 179.03, -157.62]
         movel(BUCKET_POS, vel=VELOCITY, acc=ACC, ref=DR_BASE)
+        task_compliance_ctrl()
+        time.sleep(0.1)
+        set_desired_force(fd=[0, 0, -15, 0, 0, 0], dir=[0, 0, 1, 0, 0, 0], mod=DR_FC_MOD_REL)
+        time.sleep(0.1)
+        while not check_force_condition(DR_AXIS_Z, max=10):
+            pass
+        release_force()
+        release_compliance_ctrl()
+
         mwait()
         gripper.open_gripper()
         while gripper.get_status()[0]:
@@ -197,11 +235,13 @@ class RobotController(Node):
                     break
 
                 class_name = resp.class_name
-                x, y, z, yaw = resp.position
+                target_coords = list(resp.position)
                 self.get_logger().info(f"📍 좌표: {resp.position} (개수 {resp.nums}) 이름: {class_name}")
+                #robot_posx = get_current_posx()[0]
                 
-                target_pos = [x, y, z]
-                self.pick_and_place(target_pos, yaw)
+                target_pos = self.get_target_pos(target_coords)
+                # target_pos[-1] = np.degrees(yaw)
+                self.pick_and_place(target_pos)
                 
                 # pub class_name
                 self.class_pub.publish(String(data=class_name))

@@ -72,6 +72,48 @@ class YoloModel:
 
         return all_detections
 
+    # def _aggregate_detections(self, results, confidence_threshold=0.5, iou_threshold=0.5):
+    #     """
+    #     Fuse raw OBB detection boxes across frames using IoU-based grouping
+    #     and majority voting for robust final detections.
+
+    #     results: list of YOLO OBB result objects
+    #     """
+    #     raw = []
+    #     for res in results:
+    #         for box, score, label in zip(
+    #             res.obb.xywhr.tolist(),   # [cx, cy, w, h, rad]
+    #             res.obb.conf.tolist(),
+    #             res.obb.cls.tolist(),
+    #         ):
+    #             if score >= confidence_threshold:
+    #                 raw.append({"box": box, "score": score, "label": int(label)})
+
+    #     final = []
+    #     used = [False] * len(raw)
+
+    #     for i, det in enumerate(raw):
+    #         if used[i]:
+    #             continue
+    #         group = [det]
+    #         used[i] = True
+    #         for j, other in enumerate(raw):
+    #             if not used[j] and other["label"] == det["label"]:
+    #                 if self._iou_obb(det["box"], other["box"]) >= iou_threshold:
+    #                     group.append(other)
+    #                     used[j] = True
+
+    #         boxes = np.array([g["box"] for g in group])
+    #         labels = [g["label"] for g in group]
+
+    #         final.append(
+    #             {
+    #                 "box": boxes.mean(axis=0).tolist(),
+    #                 "label": Counter(labels).most_common(1)[0][0],
+    #             }
+    #         )
+
+    #     return final
     def _aggregate_detections(self, results, confidence_threshold=0.5, iou_threshold=0.5):
         """
         Fuse raw OBB detection boxes across frames using IoU-based grouping
