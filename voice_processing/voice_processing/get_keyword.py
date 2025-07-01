@@ -37,7 +37,7 @@ class GetKeyword(Node):
         package_path = get_package_share_directory("voice_processing")
         load_dotenv(dotenv_path=os.path.join(package_path, "resource/.env"))
         openai_api_key = os.getenv("OPENAI_API_KEY")
-
+     
         # LLM 셋업
         self.llm = ChatOpenAI(
             model="gpt-4o",
