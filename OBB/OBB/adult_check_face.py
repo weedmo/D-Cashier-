@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
 from msgs.srv import AdultEvent
-from std_msgs.msg import Int32 # 1이면 인증성공, 0이면 인증실패
+from std_msgs.msg import Int32  # 1이면 인증성공, 0이면 인증실패
 
 import cv2
 import numpy as np
@@ -10,6 +10,7 @@ import easyocr
 import re
 import datetime
 import time
+import threading
 import face_recognition
 from skimage.metrics import structural_similarity as ssim
 from PIL import ImageFont, ImageDraw, Image
@@ -25,7 +26,7 @@ def _latched_qos(depth: int = 1) -> QoSProfile:
 class IDVerificationNode(Node):
     def __init__(self):
         super().__init__('id_verification_node')
-        self.srv = self.create_service(AdultEvent, 'adult_event', self.verify_callback)
+        self.srv = self.create_service(AdultEvent, '/adult_event', self.verify_callback)
         self.get_logger().info("✅ ID Verification Service Node is ready.")
         self.reader = easyocr.Reader(['ko'], gpu=False, verbose=False)
 
@@ -44,32 +45,32 @@ class IDVerificationNode(Node):
     def verify_callback(self, request, response):
         self.get_logger().info(f"📨 Received request: {request.class_name}")
 
-        response.state_adult_event = False  # 기본값
+        # 응답을 빠르게 return
+        response.state_adult_event = False
 
-        ocr_result = self.run_id_ocr_stage()
+        def ocr_and_face_thread():
+            ocr_result = self.run_id_ocr_stage()
 
-        if ocr_result == "success":
-            time.sleep(5)
-            face_success = self.run_face_verification_stage()
-            if face_success:
-                response.state_adult_event = True
-                self.get_logger().info("✅ 모든 인증 단계 완료. 성인 인증 성공.")
-                self.result_pub.publish(Int32(data=1))  # ✅ 성공 시 1
+            if ocr_result == "success":
+                time.sleep(5)
+                face_success = self.run_face_verification_stage()
+                if face_success:
+                    self.get_logger().info("✅ 모든 인증 단계 완료. 성인 인증 성공.")
+                    self.result_pub.publish(Int32(data=1))
+                else:
+                    self.get_logger().warn("⚠️ 얼굴 인증 실패. 응답 후 다음 요청 대기.")
+                    self.result_pub.publish(Int32(data=0))
+            elif ocr_result == "minor":
+                self.get_logger().warn("⚠️ 미성년자로 판별되었습니다. 인증 실패.")
+                self.result_pub.publish(Int32(data=0))
             else:
-                response.state_adult_event = False
-                self.get_logger().warn("⚠️ 얼굴 인증 실패. 응답 후 다음 요청 대기.")
-                self.result_pub.publish(Int32(data=0))  # ✅ 실패 시 0
-            return response
+                self.get_logger().warn("⚠️ OCR 단계 실패. 주민번호 추출 실패 등.")
+                self.result_pub.publish(Int32(data=0))
 
-        elif ocr_result == "minor":
-            self.get_logger().warn("⚠️ 미성년자로 판별되었습니다. 인증 실패.")
-            self.result_pub.publish(Int32(data=0))  # ✅ 실패 시 0
-            return response
+        # 새로운 thread에서 인증 처리
+        threading.Thread(target=ocr_and_face_thread, daemon=True).start()
 
-        else:
-            self.get_logger().warn("⚠️ OCR 단계 실패. 주민번호 추출 실패 등.")
-            self.result_pub.publish(Int32(data=0))  # ✅ 실패 시 0
-            return response
+        return response
 
     def preprocess_image(self, frame):
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(32, 32))
@@ -158,11 +159,11 @@ class IDVerificationNode(Node):
                         self.get_logger().info("✅ 성인입니다. 얼굴 인증을 위해 준비할 시간을 제공합니다.")
                         frame = self.draw_korean_text(frame, "성인, 얼굴 인증을 위해 준비할 시간을 제공", (100, 200), 32, color=(0, 255, 0))
                         time.sleep(5)
-                        cv2.destroyAllWindows()  # ✅ OCR 창 닫기
+                        cv2.destroyAllWindows()
                         return "success"
                     else:
                         self.get_logger().warn("⚠️ 미성년자로 판별되었습니다. 인증 실패.")
-                        cv2.destroyAllWindows()  # ✅ OCR 창 닫기
+                        cv2.destroyAllWindows()
                         return "minor"
             else:
                 hold_start_time = None
