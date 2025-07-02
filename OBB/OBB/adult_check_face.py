@@ -15,13 +15,6 @@ from skimage.metrics import structural_similarity as ssim
 from PIL import ImageFont, ImageDraw, Image
 import os
 
-def _latched_qos(depth: int = 1) -> QoSProfile:
-    return QoSProfile(
-        depth=depth,
-        reliability=QoSReliabilityPolicy.RELIABLE,
-        durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
-    )
-
 class IDVerificationNode(Node):
     def __init__(self):
         super().__init__('id_verification_node')
@@ -29,7 +22,7 @@ class IDVerificationNode(Node):
         self.get_logger().info("✅ ID Verification Service Node is ready.")
         self.reader = easyocr.Reader(['ko'], gpu=False, verbose=False)
 
-        self.cap = cv2.VideoCapture(6)
+        self.cap = cv2.VideoCapture(0)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
@@ -38,8 +31,6 @@ class IDVerificationNode(Node):
             exit(1)
 
         self.roi_x, self.roi_y, self.roi_w, self.roi_h = 440, 160, 400, 250
-
-        self.result_pub = self.create_publisher(Int32, "/adult_check_result", _latched_qos())
 
     def verify_callback(self, request, response):
         self.get_logger().info(f"📨 Received request: {request.class_name}")
@@ -54,21 +45,17 @@ class IDVerificationNode(Node):
             if face_success:
                 response.state_adult_event = True
                 self.get_logger().info("✅ 모든 인증 단계 완료. 성인 인증 성공.")
-                self.result_pub.publish(Int32(data=1))  # ✅ 성공 시 1
             else:
                 response.state_adult_event = False
                 self.get_logger().warn("⚠️ 얼굴 인증 실패. 응답 후 다음 요청 대기.")
-                self.result_pub.publish(Int32(data=0))  # ✅ 실패 시 0
             return response
 
         elif ocr_result == "minor":
             self.get_logger().warn("⚠️ 미성년자로 판별되었습니다. 인증 실패.")
-            self.result_pub.publish(Int32(data=0))  # ✅ 실패 시 0
             return response
 
         else:
             self.get_logger().warn("⚠️ OCR 단계 실패. 주민번호 추출 실패 등.")
-            self.result_pub.publish(Int32(data=0))  # ✅ 실패 시 0
             return response
 
     def preprocess_image(self, frame):
@@ -166,7 +153,7 @@ class IDVerificationNode(Node):
                         time.sleep(5)  # 신분증을 치울 시간
 
                         # 얼굴 인증 단계 전에 다시 카메라 열기
-                        self.cap = cv2.VideoCapture(6)
+                        self.cap = cv2.VideoCapture(0)
                         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
                         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
                         # time.sleep(5)

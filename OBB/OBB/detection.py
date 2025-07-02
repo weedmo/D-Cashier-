@@ -5,7 +5,6 @@ import rclpy
 from rclpy.node import Node
 
 from ament_index_python.packages import get_package_share_directory
-from std_srvs.srv import SetBool
 from msgs.srv import ObjectInformation, CheckAdultObj
 
 from OBB.realsense import ImgNode
@@ -23,23 +22,17 @@ class ObjectDetectionNode(Node):
         self.intrinsics = self._wait_for_valid_data(
             self.img_node.get_camera_intrinsic, "camera intrinsics"
         )
-        self.pause_state = True
 
-        # 서비스 등록
-        self.create_service(SetBool, '/pause_service', self.handle_pause)
-        self.get_logger().info("Service '/pause_service' ready.")
-
+        # ObjectInformation 서비스 등록
         self.create_service(ObjectInformation, '/obj_detect', self.handle_get_depth)
         self.get_logger().info("Service '/obj_detect' ready.")
 
+        # CheckAdultObj 서비스 등록 (이제 server!)
+        self.create_service(CheckAdultObj, '/check_adult_obj', self.handle_check_adult)
+        self.get_logger().info("Service '/check_adult_obj' ready.")
+
         # Detection 결과
         self.latest_detections = None
-        self.sent_check_adult_once = False
-
-        # CheckAdultObj 서비스 클라이언트
-        self.check_adult_client = self.create_client(CheckAdultObj, '/check_adult_obj')
-        while not self.check_adult_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('/check_adult_obj service not available, waiting...')
 
     def _load_model(self, name):
         if name.lower() == 'yolo':
@@ -74,9 +67,6 @@ class ObjectDetectionNode(Node):
         )
     
     def draw_detections(self, image, detections):
-        """
-        detection 결과를 입력 이미지에 그려주는 함수
-        """
         for det in detections:
             cx, cy, w, h, angle = det["box"]
             x1 = int(cx - w / 2)
@@ -87,33 +77,6 @@ class ObjectDetectionNode(Node):
             cv2.putText(image, det["label"], (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
         return image
-
-    def send_check_adult_request(self):
-        req = CheckAdultObj.Request()
-        req.trigger = True
-
-        future = self.check_adult_client.call_async(req)
-
-        def callback(fut):
-            try:
-                result = fut.result()
-                self.get_logger().info(f"✅ CheckAdultObj response: state_adult_event={result.state_adult_event}")
-            except Exception as e:
-                self.get_logger().error(f"Service call failed: {e}")
-
-        future.add_done_callback(callback)
-
-    def handle_pause(self, request, response):
-        self.pause_state = request.data
-        if self.pause_state:
-            self.get_logger().info("✅ Resume signal received. Continuing detection.")
-            response.success = True
-            response.message = "Resumed"
-        else:
-            self.get_logger().info("⏸️ Paused. Waiting for resume command...")
-            response.success = False
-            response.message = "Paused"
-        return response
 
     def handle_get_depth(self, request, response):
         if self.latest_detections:
@@ -143,16 +106,30 @@ class ObjectDetectionNode(Node):
             self.get_logger().warn("No detections available yet. Sending empty response.")
 
         return response
+
+    def handle_check_adult(self, request, response):
+        """
+        CheckAdultObj 서비스 콜백
+        trigger=True 요청이 오면 현재 detection에 terra 클래스 있는지 확인 후 응답
+        """
+        if request.trigger:
+            if self.latest_detections:
+                terra_count = sum(1 for d in self.latest_detections if d["label"] == "terra")
+                response.state_adult_event = terra_count > 0
+                self.get_logger().info(f"CheckAdultObj request: terra_count={terra_count}, state_adult_event={response.state_adult_event}")
+            else:
+                response.state_adult_event = False
+                self.get_logger().info("CheckAdultObj request: No detections, state_adult_event=False")
+        else:
+            response.state_adult_event = False
+            self.get_logger().info("CheckAdultObj request: trigger=False, state_adult_event=False")
+
+        return response
     
     def main_pipeline(self):
         self.get_logger().info("🚀 Starting main detection pipeline.")
 
         while rclpy.ok():
-            if not self.pause_state:
-                self.get_logger().warn("⏸️ Detection paused. Waiting to resume...")
-                rclpy.spin_once(self, timeout_sec=0.5)
-                continue
-
             # 이미지 업데이트
             rclpy.spin_once(self.img_node)
 
@@ -171,12 +148,6 @@ class ObjectDetectionNode(Node):
             box = largest["box"]
             self.get_logger().info(f"Detected: {label}, box={box}")
 
-            # terra 클래스 여부 확인
-            terra_count = sum(1 for d in self.latest_detections if d["label"] == "terra")
-            if terra_count > 0 and not self.sent_check_adult_once:
-                self.send_check_adult_request()
-                self.sent_check_adult_once = True
-
             # ---------- 이미지 시각화 ----------
             color_img = self.img_node.get_color_frame()
             if color_img is not None and color_img.any():
@@ -188,6 +159,7 @@ class ObjectDetectionNode(Node):
                     break
 
         cv2.destroyAllWindows()
+
 
 def main(args=None):
     rclpy.init(args=args)
