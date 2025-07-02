@@ -24,7 +24,8 @@ setup(
     entry_points={
         'console_scripts': [
             'detection = OBB.detection:main',
-            'is_adult = OBB.adult_check_face:main'
+            'is_adult = OBB.adult_check_face:main',
+            'pause_test = OBB.pause_test:main'
         ],
     },
 )

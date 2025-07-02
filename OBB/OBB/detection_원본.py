@@ -1,7 +1,7 @@
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from rclpy.executors import MultiThreadedExecutor
+from typing import Any
 
 from ament_index_python.packages import get_package_share_directory
 from msgs.srv import ObjectInformation
@@ -29,7 +29,7 @@ class ObjectDetectionNode(Node):
             '/obj_detect',
             self.handle_get_depth
         )
-        self.get_logger().info("Service 'obj_detect' ready.")
+        self.get_logger().info("Service '/obj_detect' ready.")
 
         # OCR+Face detection service client 생성
         self.verify_cli = self.create_client(AdultEvent, '/adult_event')
@@ -67,7 +67,7 @@ class ObjectDetectionNode(Node):
                 if future.done():
                     try:
                         result = future.result()
-                        if result.result:
+                        if result.state_adult_event:
                             admin_event = 1  # OCR+Face 인증 성공
                             self.get_logger().info("✅ OCR+Face verification success. Proceeding to position estimation.")
                         else:
@@ -159,17 +159,12 @@ class ObjectDetectionNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = ObjectDetectionNode()
-
-    executor = MultiThreadedExecutor()
-    executor.add_node(node)
-    executor.add_node(node.img_node)
-
     try:
-        executor.spin()
+        rclpy.spin(node)
     finally:
         node.destroy_node()
         rclpy.shutdown()
 
 
 if __name__ == '__main__':
-    main()
+    main() 
