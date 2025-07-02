@@ -1,4 +1,3 @@
-import os
 import numpy as np
 import cv2
 
@@ -10,13 +9,9 @@ from msgs.srv import ObjectInformation
 
 from OBB.realsense import ImgNode
 from OBB.yolo import YoloModel
-from OBB.polygon_processor import PolygonProcessor  # PolygonProcessor 클래스 import
 
 PACKAGE_NAME = 'OBB'
 PACKAGE_PATH = get_package_share_directory(PACKAGE_NAME)
-
-BACK_NAME = "back.jpg"
-BACK_PATH = os.path.join(PACKAGE_PATH, "resource", BACK_NAME)
 
 class ObjectDetectionNode(Node):
     def __init__(self, model_name='yolo'):
@@ -27,12 +22,6 @@ class ObjectDetectionNode(Node):
             self.img_node.get_camera_intrinsic, "camera intrinsics"
         )
         self.get_logger().info("✅ Camera intrinsics loaded.")
-
-        # Background 이미지 불러오기
-        background = cv2.imread(BACK_PATH)
-        if background is None:
-            self.get_logger().warn("❗ Background image not found.")
-        self.polygon_processor = PolygonProcessor(background)
 
         # ObjectInformation 서비스 등록
         self.create_service(ObjectInformation, '/obj_detect', self.handle_get_depth)
@@ -79,21 +68,6 @@ class ObjectDetectionNode(Node):
         detections = self.model.get_best_detection(self.img_node)
         if not detections:
             self.get_logger().warn("No detections found. Sending empty response.")
-            result_diff = self.polygon_processor.process(self.img_node.get_color_frame())
-            if result_diff:
-                box = result_diff["box"]
-                cx, cy = int(box[0]), int(box[1])
-                cz = self._get_depth(cx, cy)
-                radian = box[4]
-                camera_coords = self._pixel_to_camera_coords(cx, cy, cz)
-                fx = self.intrinsics['fx']
-                min_px = min(box[2], box[3])
-                min_size = (min_px * cz) / fx
-                response.position = [float(x) for x in camera_coords] + [float(radian), float(min_size)]
-                response.adult_obj = False
-                response.class_name = "None Class"
-                response.adult_obj = False
-                return response
             response.adult_obj = False
             return response
 

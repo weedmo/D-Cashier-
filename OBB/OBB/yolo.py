@@ -50,7 +50,7 @@ class YoloModel:
             return None
 
         # YOLO 모델 inference
-        results = self.model(frames, verbose=False)
+        results = self.model(frames, verbose=False, conf=0.6)
 
         # 클래스 이름 가져오기
         class_names = results[0].names
