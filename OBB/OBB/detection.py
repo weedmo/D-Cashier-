@@ -68,13 +68,14 @@ class ObjectDetectionNode(Node):
     
     def draw_detections(self, image, detections):
         for det in detections:
-            cx, cy, w, h, angle = det["box"]
-            x1 = int(cx - w / 2)
-            y1 = int(cy - h / 2)
-            x2 = int(cx + w / 2)
-            y2 = int(cy + h / 2)
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(image, det["label"], (x1, y1 - 10),
+            cx, cy, _, _, _ = det["box"]
+            cx, cy = int(cx), int(cy)
+            
+            # 중심점 그리기 (작은 원)
+            cv2.circle(image, (cx, cy), radius=5, color=(0, 255, 0), thickness=-1)
+            
+            # label 표시
+            cv2.putText(image, det["label"], (cx + 10, cy - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
         return image
 
