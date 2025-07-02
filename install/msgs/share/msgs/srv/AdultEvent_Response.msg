@@ -1,0 +1,2 @@
+
+bool state_adult_event

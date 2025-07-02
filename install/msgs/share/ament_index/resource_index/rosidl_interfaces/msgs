@@ -1,0 +1,8 @@
+srv/AdultEvent.idl
+srv/AdultEvent.srv
+srv/AdultEvent_Request.msg
+srv/AdultEvent_Response.msg
+srv/ObjectInformation.idl
+srv/ObjectInformation.srv
+srv/ObjectInformation_Request.msg
+srv/ObjectInformation_Response.msg

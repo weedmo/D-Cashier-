@@ -1,0 +1,15 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from msgs/srv/AdultEvent.srv
+// generated code does not contain a copyright notice
+
+
+module msgs {
+  module srv {
+    struct AdultEvent_Request {
+      string class_name;
+    };
+    struct AdultEvent_Response {
+      boolean state_adult_event;
+    };
+  };
+};

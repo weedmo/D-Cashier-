@@ -21,7 +21,7 @@ setup(
     license='MIT',
     entry_points={
         'console_scripts': [
-            'gui = gui.real_gui:main',
+            'real_gui = gui.real_gui:main',
         ],
     },
 )

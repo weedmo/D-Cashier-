@@ -1,0 +1,8 @@
+source;ros_domain_id.txt
+source;share/robot_api_control/hook/pythonpath.ps1
+source;share/robot_api_control/hook/pythonpath.dsv
+source;share/robot_api_control/hook/pythonpath.sh
+source;ros_domain_id.txt
+source;share/robot_api_control/hook/ament_prefix_path.ps1
+source;share/robot_api_control/hook/ament_prefix_path.dsv
+source;share/robot_api_control/hook/ament_prefix_path.sh
