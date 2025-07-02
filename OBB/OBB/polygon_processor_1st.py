@@ -6,7 +6,6 @@ class PolygonProcessor:
         if background_image is None:
             raise ValueError("Background image is None")
         self.background = background_image
-        self.roi_vertices = [(48, 3), (526, 6), (529, 416), (50, 413)]  # ROI polygon vertices
 
     def compute_yaw_from_long_edge(self, vertices):
         edges = [
@@ -48,23 +47,15 @@ class PolygonProcessor:
     def process(self, current_image):
         if current_image is None:
             raise ValueError("Current image is None")
+        # print(self.background)
+        # print(current_image[0])
 
         if self.background.shape != current_image.shape:
             current_image = cv2.resize(current_image, (self.background.shape[1], self.background.shape[0]))
 
-        # ROI polygon 마스크 생성
-        mask = np.zeros(self.background.shape[:2], dtype=np.uint8)
-        if self.roi_vertices is not None:
-            roi_pts = np.array(self.roi_vertices, dtype=np.int32)
-            cv2.fillPoly(mask, [roi_pts], 255)
-
         diff = cv2.absdiff(current_image, self.background)
         gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(gray, 30, 255, cv2.THRESH_BINARY)
-
-        # ROI 마스크 적용
-        if self.roi_vertices is not None:
-            thresh = cv2.bitwise_and(thresh, mask)
 
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
@@ -107,20 +98,13 @@ class PolygonProcessor:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
 
             return {
-                "box": (int(cx), int(cy), float(w), float(h), yaw),
-                "poly_img": poly_img,
-                "vertices": vertices,
-                "yaw": yaw
-            }
+                "box": (int(cx), int(cy), float(w), float(h), yaw) }
 
         return None
 
 if __name__ == "__main__":
     background = cv2.imread("images5/back.jpg")
     current = cv2.imread("images5/test_img_1.jpg")
-
-    # 클릭한 좌표로 ROI polygon 지정
-    roi_vertices = [(48, 3), (526, 6), (529, 416), (50, 413)]
 
     processor = PolygonProcessor(background)
 

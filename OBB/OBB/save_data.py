@@ -9,7 +9,7 @@ from cv_bridge import CvBridge
 # 사용자 설정 상수 정의
 # ==============================
 SAVE_DIRECTORY = "resource"                          # 저장할 디렉토리 이름
-FILE_PREFIX = "Terra"                               # 저장할 파일 prefix
+FILE_PREFIX = "back"                               # 저장할 파일 prefix
 IMAGE_TOPIC = "/camera/camera/color/image_raw"     # 구독할 이미지 토픽
 
 class ImageCaptureNode(Node):
@@ -55,7 +55,7 @@ def main():
                     # 이미지 저장
                     file_name = os.path.join(
                         node.save_directory,
-                        f"{node.file_prefix}img_{node.image_count}.jpg"
+                        f"{node.file_prefix}.jpg"
                     )
                     cv2.imwrite(file_name, node.frame)
                     success = cv2.imwrite(file_name, node.frame)
