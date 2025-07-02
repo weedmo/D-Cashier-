@@ -21,7 +21,7 @@ class ObjectDetectionNode(Node):
         self.intrinsics = self._wait_for_valid_data(
             self.img_node.get_camera_intrinsic, "camera intrinsics"
         )
-        self.latest_detections = None
+        self.get_logger().info("✅ Camera intrinsics loaded.")
 
         # ObjectInformation 서비스 등록
         self.create_service(ObjectInformation, '/obj_detect', self.handle_get_depth)
@@ -58,86 +58,57 @@ class ObjectDetectionNode(Node):
             (y - ppy) * z / fy,
             z
         )
-    
-    def draw_detections(self, image, detections):
-        for det in detections:
-            cx, cy, _, _, _ = det["box"]
-            cx, cy = int(cx), int(cy)
-            cv2.circle(image, (cx, cy), radius=5, color=(0, 255, 0), thickness=-1)
-            cv2.putText(image, det["label"], (cx + 10, cy - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-        return image
 
     def handle_get_depth(self, request, response):
-        self.get_logger().info("🔎 [ObjectInformation] Handling request...")
-        if self.latest_detections:
-            largest = self.latest_detections[0]
-            box = largest["box"]
-            label = largest["label"]
-            cx, cy = int(box[0]), int(box[1])
-            cz = self._get_depth(cx, cy)
+        self.get_logger().info("🔎 [ObjectInformation] Service request received.")
 
-            label = largest["label"]
-            box = largest["box"]
-            self.get_logger().info(f"Detected: {label}, coordi={cx, cy, cz}")
+        # 이미지 업데이트
+        rclpy.spin_once(self.img_node)
 
-            if cz is not None and cz > 0.0:
-                radian = box[4]
-                camera_coords = self._pixel_to_camera_coords(cx, cy, cz)
-                fx = self.intrinsics['fx']
-                min_px = min(box[2], box[3])
-                min_size = (min_px * cz) / fx
+        detections = self.model.get_best_detection(self.img_node)
+        if not detections:
+            self.get_logger().warn("No detections found. Sending empty response.")
+            response.adult_obj = False
+            return response
 
-                response.position = [float(x) for x in camera_coords] + [float(radian), float(min_size)]
-                response.class_name = label
+        # 가장 큰 객체 선택
+        detections = sorted(
+            detections, key=lambda d: d["box"][2] * d["box"][3], reverse=True
+        )
+        largest = detections[0]
+        box = largest["box"]
+        label = largest["label"]
+        cx, cy = int(box[0]), int(box[1])
+        cz = self._get_depth(cx, cy)
 
-                # terra 객체 개수 세기
-                terra_count = sum(1 for d in self.latest_detections if d["label"] == "terra")
-                response.adult_obj = terra_count > 0
+        self.get_logger().info(f"Detected: {label}, coordi=({cx}, {cy}, {cz})")
 
-                self.get_logger().info(f"✅ Response: position={response.position}, class_name={label}, adult_obj={response.adult_obj}")
-            else:
-                self.get_logger().warn("Invalid depth. Sending empty response.")
-                response.adult_obj = False
+        if cz is not None and cz > 0.0:
+            radian = box[4]
+            camera_coords = self._pixel_to_camera_coords(cx, cy, cz)
+            fx = self.intrinsics['fx']
+            min_px = min(box[2], box[3])
+            min_size = (min_px * cz) / fx
+
+            response.position = [float(x) for x in camera_coords] + [float(radian), float(min_size)]
+            response.class_name = label
+
+            # terra 객체 개수 세기
+            terra_count = sum(1 for d in detections if d["label"] == "terra")
+            response.adult_obj = terra_count > 0
+
+            self.get_logger().info(f"✅ Response: position={response.position}, class_name={label}, adult_obj={response.adult_obj}")
         else:
-            self.get_logger().warn("No detections yet. Sending empty response.")
+            self.get_logger().warn("Invalid depth. Sending empty response.")
             response.adult_obj = False
 
         return response
-
-    def main_pipeline(self):
-        self.get_logger().info("🚀 Starting main detection pipeline.")
-
-        while rclpy.ok():
-            # 이미지 업데이트
-            rclpy.spin_once(self.img_node)
-
-            detections = self.model.get_best_detection(self.img_node)
-            if not detections:
-                self.latest_detections = None
-                self.get_logger().warn("No detections found.")
-                continue
-
-            self.latest_detections = sorted(
-                detections, key=lambda d: d["box"][2] * d["box"][3], reverse=True
-            )
-
-            color_img = self.img_node.get_color_frame()
-            if color_img is not None and color_img.any():
-                vis_img = self.draw_detections(color_img.copy(), self.latest_detections)
-                cv2.imshow("Real-time Detection", vis_img)
-                key = cv2.waitKey(1)
-                if key == 27:
-                    self.get_logger().info("ESC pressed. Exiting loop.")
-                    break
-
-        cv2.destroyAllWindows()
 
 def main(args=None):
     rclpy.init(args=args)
     node = ObjectDetectionNode()
     try:
-        node.main_pipeline()
+        rclpy.spin(node)
     finally:
         node.destroy_node()
         rclpy.shutdown()
