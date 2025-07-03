@@ -105,15 +105,6 @@ class ObjectDetectionNode(Node):
         largest = detections[0]
         box = largest["box"]
         label = largest["label"]
-        poly = largest["poly"]
-        if label in ["bacchus", "terra"]:
-            yellow_result = self.model.analyze_yellow_in_polygon(self.img_node, poly)
-            if yellow_result["near_yellow_count"] < yellow_result["far_yellow_count"]:
-                response.pitch = -1
-            else :
-                response.pitch = 1
-        response.pitch = 0
-        
         cx, cy = int(box[0]), int(box[1])
         cz = self._get_depth(cx, cy)
 
