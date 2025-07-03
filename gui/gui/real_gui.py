@@ -12,6 +12,7 @@ from threading import Thread
 from ament_index_python.packages import get_package_share_directory
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSReliabilityPolicy
 
+
 PACKAGE_PATH = get_package_share_directory('gui')
 JSON_PATH = os.path.join(PACKAGE_PATH, 'resource', 'product_data.json')
 

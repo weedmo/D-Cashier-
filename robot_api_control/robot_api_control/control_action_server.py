@@ -117,12 +117,14 @@ class PickAndPlaceServer(Node):
         """Blocking pick‑and‑place routine."""
         self._init_robot()
         mwait()
+        feedback.feedback = "init_robot"
+        time.sleep(0.5)
         init_wrench = get_tool_force()
-        init_fz     = abs(init_wrench[2])-1.0
+        init_fz     = abs(init_wrench[2])
         self.get_logger().info(f"🔎 Fz = {init_fz:.2f} N")
         # 1 Move above the object
         self.get_logger().info("▶️ Approach target …")
-
+        feedback.feedback = "▶️ Approach target …"
         ## bottle z값 예외처리
         if is_bottle:
             target_pose[2] -= 20
@@ -135,15 +137,15 @@ class PickAndPlaceServer(Node):
         while self.gripper.get_status()[0]:
             time.sleep(0.1)
         mwait()
-        
+
         # 3 Lift up
         up_pose = target_pose.copy()
         up_pose[2] += 100.0
         movel(up_pose, vel=VELOCITY, acc=ACC, ref=DR_BASE)
         mwait()
-        
+        feedback.feedback = "lift up"
          # ─── 🔍 잡기 실패 감지 ─────────────────────
-        time.sleep(0.2)                       # 센서 안정화
+        time.sleep(0.5)                       # 센서 안정화
         wrench = get_tool_force()             # [Fx, Fy, Fz, Tx, Ty, Tz]
         fz = abs(wrench[2])                   # 3번째 요소
         self.get_logger().info(f"🔎 Fz = {fz:.2f} N")
@@ -158,7 +160,7 @@ class PickAndPlaceServer(Node):
         
         # 4 Move to bucket & place
         movel(goal_pose, vel=VELOCITY, acc=ACC, ref=DR_BASE)
-        
+        feedback.feedback ="move to bucket or cancel place"
         if is_bottle:
             task_compliance_ctrl()
             time.sleep(0.1)
@@ -176,8 +178,10 @@ class PickAndPlaceServer(Node):
         while self.gripper.get_status()[0]:
             time.sleep(0.1)
 
+        feedback.feedback = "open gripper"
         self._init_robot()
         self.get_logger().info("✅ Pick‑and‑place cycle finished")
+        feedback.feedback = "final initrobot"
 
     # ───────────── Action callbacks ───────────────────────────
     def _goal_cb(self, goal_request):
@@ -186,6 +190,7 @@ class PickAndPlaceServer(Node):
 
     def _cancel_cb(self, goal_handle):
         self.get_logger().info("✋ Cancel request received – accepting …")
+        mwait()
         self._init_robot()
         return CancelResponse.ACCEPT
 
