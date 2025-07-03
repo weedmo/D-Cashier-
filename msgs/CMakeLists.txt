@@ -23,6 +23,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/AdultEvent.srv"
   "srv/ObjectInformation.srv"
   "srv/CheckAdultObj.srv"
+  "srv/CancelObject.srv"
   "action/PickAndPlace.action"
   "action/ObjRotation.action"
   DEPENDENCIES std_msgs action_msgs

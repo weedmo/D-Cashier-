@@ -33,7 +33,7 @@ class IDVerificationNode(Node):
         self.roi_x, self.roi_y, self.roi_w, self.roi_h = 440, 160, 400, 250
 
     def verify_callback(self, request, response):
-        self.get_logger().info(f"📨 Received request: {request.class_name}")
+        self.get_logger().info(f"📨 Received request: {request.trigger}")
 
         response.state_adult_event = False  # 기본값
 

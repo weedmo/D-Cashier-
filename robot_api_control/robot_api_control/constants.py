@@ -9,17 +9,16 @@ GUI_PKG     = get_package_share_directory('gui')
 JSON_PATH   = os.path.join(GUI_PKG, 'resource', 'product_data.json')
 
 # topic_name 
+GUI_TOPIC       = '/gui_command'
 KEYWORD_TOPIC   = '/keyword'
-PROMPT_TOPIC    = '/prompt_pub'
 CLASS_TOPIC     = '/class_name'
-AB_TOPIC        = '/ask_bag'
-TD_TOPIC        = '/adult_check_result'
 
 # client_name
 KEYWORD_SERVICE = '/get_keyword'
 OBJ_SERVICE     = '/obj_detect'
 ADULT_SERVICE   = '/adult_event'
 CHECK_SERVICE   = '/check'
+CO_SERVICE      = '/cancel_object'
 PAP_ACTION      = '/pick_and_place'
 
 # Robot information

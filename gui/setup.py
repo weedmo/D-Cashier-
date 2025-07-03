@@ -3,7 +3,6 @@ from setuptools import setup
 package_name = 'gui'
 resource_files = [
         'resource/product_data.json',
-        'resource/.env'
     ]
 setup(
     name=package_name,
@@ -21,7 +20,7 @@ setup(
     license='MIT',
     entry_points={
         'console_scripts': [
-            'gui = gui.real_gui:main',
+            'real_gui = gui.real_gui:main',
         ],
     },
 )

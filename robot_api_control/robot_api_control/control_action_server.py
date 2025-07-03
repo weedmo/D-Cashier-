@@ -55,8 +55,10 @@ try:
         get_tool,
         get_tcp,
         DR_BASE,
+        DR_TOOL,
         get_current_posx,
         get_tool_force,
+        task_compliance_ctrl,
         
         # force control
         task_compliance_ctrl,
@@ -110,15 +112,18 @@ class PickAndPlaceServer(Node):
                         min_size: float,
                         grip_force: int,
                         is_bottle:bool,
-                        pitch: int,
                         feedback):
         
         """Blocking pick‑and‑place routine."""
         self._init_robot()
         mwait()
+        init_wrench = get_tool_force()
+        init_fz     = abs(init_wrench[2])-1.0
+        self.get_logger().info(f"🔎 Fz = {init_fz:.2f} N")
         # 1 Move above the object
         self.get_logger().info("▶️ Approach target …")
 
+        ## bottle z값 예외처리
         if is_bottle:
             target_pose[2] -= 20
         movel(target_pose, vel=VELOCITY, acc=ACC, ref=DR_BASE)
@@ -130,12 +135,12 @@ class PickAndPlaceServer(Node):
         while self.gripper.get_status()[0]:
             time.sleep(0.1)
         mwait()
-        self.get_logger.info(pitch)
+        
         # 3 Lift up
         up_pose = target_pose.copy()
         up_pose[2] += 100.0
-        up_pose[4] += pitch * 90
         movel(up_pose, vel=VELOCITY, acc=ACC, ref=DR_BASE)
+        mwait()
         
          # ─── 🔍 잡기 실패 감지 ─────────────────────
         time.sleep(0.2)                       # 센서 안정화
@@ -143,7 +148,7 @@ class PickAndPlaceServer(Node):
         fz = abs(wrench[2])                   # 3번째 요소
         self.get_logger().info(f"🔎 Fz = {fz:.2f} N")
 
-        if fz <= 0.02:                         # 임계값 2 N 이하 = 물체 미검출
+        if fz <= init_fz:                         # 임계값 2 N 이하 = 물체 미검출
             self.get_logger().warn("❌ Grasp failed, releasing …")
             feedback.feedback = "grasp failed"
             feedback.grip = False
@@ -207,7 +212,6 @@ class PickAndPlaceServer(Node):
                 goal_handle.request.min_size,
                 goal_handle.request.gripper_force,
                 goal_handle.request.is_bottle,
-                goal_handle.request.pitch,
                 fb,
             )
 

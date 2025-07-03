@@ -10,13 +10,14 @@ from msgs.srv import ObjectInformation
 
 from OBB.realsense import ImgNode
 from OBB.yolo import YoloModel
-from OBB.polygon_processor import PolygonProcessor  # PolygonProcessor 클래스 import
+from OBB.polygon_processor import PolygonProcessor
 
 PACKAGE_NAME = 'OBB'
 PACKAGE_PATH = get_package_share_directory(PACKAGE_NAME)
 
 BACK_NAME = "back.jpg"
 BACK_PATH = os.path.join(PACKAGE_PATH, "resource", BACK_NAME)
+
 
 class ObjectDetectionNode(Node):
     def __init__(self, model_name='yolo'):
@@ -28,13 +29,11 @@ class ObjectDetectionNode(Node):
         )
         self.get_logger().info("✅ Camera intrinsics loaded.")
 
-        # Background 이미지 불러오기
         background = cv2.imread(BACK_PATH)
         if background is None:
             self.get_logger().warn("❗ Background image not found.")
         self.polygon_processor = PolygonProcessor(background)
 
-        # ObjectInformation 서비스 등록
         self.create_service(ObjectInformation, '/obj_detect', self.handle_get_depth)
         self.get_logger().info("✅ Service '/obj_detect' ready.")
 
@@ -70,46 +69,63 @@ class ObjectDetectionNode(Node):
             z
         )
 
+    def visualize_detections(self, frame, detections):
+        vis_frame = frame.copy()
+
+        for det in detections:
+            box = det["box"]
+            label = det["label"]
+
+            cx, cy = int(box[0]), int(box[1])
+            w, h = int(box[2]), int(box[3])
+            radian = box[4]
+            angle_deg = np.degrees(radian)
+
+            rect = ((cx, cy), (w, h), angle_deg)
+            box_points = cv2.boxPoints(rect)
+            box_points = np.intp(box_points)
+
+            cv2.drawContours(vis_frame, [box_points], 0, (0, 255, 0), 2)
+            cv2.circle(vis_frame, (cx, cy), 5, (0, 0, 255), -1)
+            cv2.putText(vis_frame, label, (cx - 30, cy - 10), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.7, (255, 0, 0), 2, cv2.LINE_AA)
+
+        return vis_frame
+
     def handle_get_depth(self, request, response):
         self.get_logger().info("🔎 [ObjectInformation] Service request received.")
 
-        # 이미지 업데이트
+        # Spin once to update frames
         rclpy.spin_once(self.img_node)
 
+        frame = self.img_node.get_color_frame()
+        if frame is None:
+            self.get_logger().warn("⚠️ Color frame is None.")
+            return response
+        elif not frame.any():
+            self.get_logger().warn("⚠️ Color frame is empty (all zeros).")
+            return response
+        else:
+            self.get_logger().info(f"✅ Color frame received: shape={frame.shape}, dtype={frame.dtype}")
+
         detections = self.model.get_best_detection(self.img_node)
+
+        # 시각화 이미지 생성
+        vis_img = self.visualize_detections(frame, detections)
+        cv2.imshow("Detection Visualization", vis_img)
+        cv2.waitKey(30)
+
         if not detections:
             self.get_logger().warn("No detections found. Sending empty response.")
-            result_diff = self.polygon_processor.process(self.img_node.get_color_frame())
-            if result_diff:
-                box = result_diff["box"]
-                cx, cy = int(box[0]), int(box[1])
-                cz = self._get_depth(cx, cy)
-                radian = box[4]
-                camera_coords = self._pixel_to_camera_coords(cx, cy, cz)
-                fx = self.intrinsics['fx']
-                min_px = min(box[2], box[3])
-                min_size = (min_px * cz) / fx
-                response.position = [float(x) for x in camera_coords] + [float(radian), float(min_size)]
-                response.adult_obj = False
-                response.class_name = "None Class"
-                response.adult_obj = False
-                return response
-            
+            response.class_name = "None"
             response.adult_obj = False
             return response
 
-        # 가장 큰 객체 선택
-        detections = sorted(
-            detections, key=lambda d: d["box"][2] * d["box"][3], reverse=True
-        )
-        largest = detections[0]
+        largest = sorted(detections, key=lambda d: d["box"][2] * d["box"][3], reverse=True)[0]
         box = largest["box"]
         label = largest["label"]
-     
         cx, cy = int(box[0]), int(box[1])
         cz = self._get_depth(cx, cy)
-
-        self.get_logger().info(f"Detected: {label}, coordi=({cx}, {cy}, {cz})")
 
         if cz is not None and cz > 0.0:
             radian = box[4]
@@ -121,10 +137,8 @@ class ObjectDetectionNode(Node):
             response.position = [float(x) for x in camera_coords] + [float(radian), float(min_size)]
             response.class_name = label
 
-            # terra 객체 개수 세기
             terra_count = sum(1 for d in detections if d["label"] == "terra")
             response.adult_obj = terra_count > 0
-
             self.get_logger().info(f"✅ Response: position={response.position}, class_name={label}, adult_obj={response.adult_obj}")
         else:
             self.get_logger().warn("Invalid depth. Sending empty response.")
@@ -132,14 +146,17 @@ class ObjectDetectionNode(Node):
 
         return response
 
+
 def main(args=None):
     rclpy.init(args=args)
     node = ObjectDetectionNode()
     try:
         rclpy.spin(node)
     finally:
+        cv2.destroyAllWindows()
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

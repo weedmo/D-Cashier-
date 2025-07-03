@@ -25,7 +25,11 @@ setup(
         'console_scripts': [
             'detection = OBB.detection:main',
             'is_adult = OBB.adult_check_face:main',
-            'pause_test = OBB.pause_test:main'
+            'pause_test = OBB.pause_test:main',
+            'real = OBB.detection_real:main',
+            'canel = OBB.cancel_detection:main',
+            'test = OBB.test_yolo:main'         
+                 
         ],
     },
 )

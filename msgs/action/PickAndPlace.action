@@ -3,9 +3,7 @@ float64[6] target_pose     # [x y z rx ry rz] (base frame)
 float64[6] goal_pose
 float32    min_size        # mm
 int32      gripper_force   # N
-bool       buy_or_not
 bool       is_bottle 
-int32      pitch     
 ---
 bool       success
 string     message
