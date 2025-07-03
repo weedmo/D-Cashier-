@@ -1,0 +1,6 @@
+bool      state_main
+string    cancel_name
+---
+float64[] position
+string    class_name
+bool      adult_obj
