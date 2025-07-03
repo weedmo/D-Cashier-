@@ -17,11 +17,27 @@ YOLO_MODEL_FILENAME = "obj_detect_obb.pt"
 YOLO_MODEL_PATH = os.path.join(PACKAGE_PATH, "resource", YOLO_MODEL_FILENAME)
 
 class YoloModel:
+    """
+    YOLO OBB(Oriented Bounding Box) 기반 객체 탐지를 수행하는 클래스.
+    - 실시간 프레임 수집
+    - YOLO 모델을 통한 다각형(Polygon) 기반 객체 검출
+    - 검출된 객체의 중심 좌표, 크기(width/height), yaw(회전 각도)를 계산 후 집계
+    """
+
     def __init__(self):
+        """YOLO OBB 모델 초기화"""
         self.model = YOLO(YOLO_MODEL_PATH)
 
     def get_frames(self, img_node, duration=1.0):
-        """지정 시간 동안 frame들을 받아오는 함수"""
+        """
+        ROS2 이미지 노드로부터 지정된 시간 동안 여러 frame을 수집한다.
+        Args:
+            img_node: 이미지 노드 객체
+            duration: 프레임 수집 시간(초)
+
+        Returns:
+            frame 이미지 배열 리스트
+        """
         end_time = time.time() + duration
         frames = {}
 
@@ -41,26 +57,32 @@ class YoloModel:
 
     def get_best_detection(self, img_node):
         """
-        frame들을 통해 얻은 모든 detection 결과 반환
-        return: [ { "label": label_name, "box": [...] }, ... ]
+        ROS2 노드에서 frame들을 받고 YOLO OBB를 사용하여 객체를 검출하고,
+        Polygon vertex로부터 중심 좌표, 크기, yaw 등을 종합하여 최종 결과를 반환한다.
+
+        Returns:
+            detections: [
+                { "label": label_name, "box": [cx, cy, w, h, yaw] },
+                ...
+            ]
         """
         rclpy.spin_once(img_node)
         frames = self.get_frames(img_node)
         if not frames:
             return None
 
-        # YOLO 모델 inference
+        # YOLO 모델 다중 프레임 추론
         results = self.model(frames, verbose=False, conf=0.6)
 
-        # 클래스 이름 가져오기
+        # YOLO 클래스 이름
         class_names = results[0].names
         print("classes: ", class_names)
 
-        # 그룹화 및 개별 frame vertex 계산
+        # 검출된 polygon vertex들을 종합
         detections = self._aggregate_detections(results)
         print("detections: ", detections)
 
-        # 클래스 이름 변환
+        # 클래스 이름 변환 및 결과 정리
         all_detections = []
         for det in detections:
             label_name = class_names.get(det["label"], f"id:{det['label']}")
@@ -73,14 +95,18 @@ class YoloModel:
 
     def _aggregate_detections(self, results, confidence_threshold=0.5, iou_threshold=0.5):
         """
-        frame별 polygon vertex를 통해 center, w, h, yaw를 개별 계산 후, 각 param 평균
+        각 frame의 polygon vertex를 기반으로 center, width, height, yaw를 계산하고,
+        비슷한 객체를 그룹화하여 평균값을 집계한다.
+
+        Returns:
+            list of dicts: [{ "box": [cx, cy, w, h, yaw], "label": class_id }, ...]
         """
         raw = []
         for res in results:
             for poly, score, label in zip(
-                res.obb.xyxyxyxy.tolist(),  # [x1,y1,...,x4,y4]
-                res.obb.conf.tolist(),
-                res.obb.cls.tolist(),
+                res.obb.xyxyxyxy.tolist(),  # polygon vertex
+                res.obb.conf.tolist(),     # confidence
+                res.obb.cls.tolist(),      # class id
             ):
                 if score >= confidence_threshold:
                     raw.append({"poly": poly, "score": score, "label": int(label)})
@@ -91,6 +117,7 @@ class YoloModel:
         for i, det in enumerate(raw):
             if used[i]:
                 continue
+
             group = [det]
             used[i] = True
             for j, other in enumerate(raw):
@@ -101,59 +128,59 @@ class YoloModel:
 
             centers_x, centers_y, widths, heights, yaws = [], [], [], [], []
 
-            # frame별 vertex 기반 center, w, h, yaw 계산
             for g in group:
                 poly = g["poly"]
-                # poly가 이미 [[x1,y1], [x2,y2], [x3,y3], [x4,y4]] 형태
+
                 if poly is None or len(poly) != 4:
                     print(f"⚠️ Warning: Invalid polygon vertex count: {len(poly) if poly is not None else 'None'} -> {poly}")
                     continue
 
-                vertices = poly  # ✅ 바로 사용
+                vertices = poly
 
-                # 순서 보정
+                # Polygon vertex 순서를 반시계 방향으로 보정
                 if not self._is_counter_clockwise(vertices):
                     vertices = vertices[::-1]
 
+                # 중심점 계산
                 cx = np.mean([v[0] for v in vertices])
                 cy = np.mean([v[1] for v in vertices])
 
+                # 두 edge의 길이 계산 (긴 쪽이 width, 짧은 쪽이 height)
                 edge1 = np.hypot(vertices[1][0] - vertices[0][0], vertices[1][1] - vertices[0][1])
                 edge2 = np.hypot(vertices[2][0] - vertices[1][0], vertices[2][1] - vertices[1][1])
                 w = max(edge1, edge2)
                 h = min(edge1, edge2)
 
+                # yaw 계산
                 yaw = self._compute_yaw_from_vertices(vertices)
 
+                # 개별 값 리스트에 저장
                 centers_x.append(cx)
                 centers_y.append(cy)
                 widths.append(w)
                 heights.append(h)
                 yaws.append(yaw)
 
-            # param 평균
+            # 평균 계산 (yaw는 sin, cos 방식)
             cx_mean = np.mean(centers_x)
             cy_mean = np.mean(centers_y)
             w_mean = np.mean(widths)
             h_mean = np.mean(heights)
 
-            # yaw 평균 (sin, cos 방식)
             sin_sum = np.mean(np.sin(yaws))
             cos_sum = np.mean(np.cos(yaws))
             yaw_mean = np.arctan2(sin_sum, cos_sum)
 
-            final.append(
-                {
-                    "box": [cx_mean, cy_mean, w_mean, h_mean, yaw_mean],
-                    "label": Counter([g["label"] for g in group]).most_common(1)[0][0],
-                }
-            )
+            final.append({
+                "box": [cx_mean, cy_mean, w_mean, h_mean, yaw_mean],
+                "label": Counter([g["label"] for g in group]).most_common(1)[0][0],
+            })
 
         return final
 
     def _iou_simple(self, poly1, poly2):
         """
-        간단한 polygon IoU 계산 (cv2 contours 기반)
+        polygon 간 IoU(Intersection over Union)를 단순 계산한다.
         """
         contour1 = np.array(poly1, dtype=np.float32).reshape(-1, 1, 2)
         contour2 = np.array(poly2, dtype=np.float32).reshape(-1, 1, 2)
@@ -169,7 +196,7 @@ class YoloModel:
 
     def _is_counter_clockwise(self, vertices):
         """
-        polygon vertex 순서가 반시계 방향인지 확인
+        vertex들의 순서가 반시계 방향인지 확인 (signed area를 이용)
         """
         n = len(vertices)
         area = 0.0
@@ -181,7 +208,7 @@ class YoloModel:
 
     def _compute_yaw_from_vertices(self, vertices):
         """
-        vertex 기반으로 yaw (theta) 계산
+        polygon vertex로부터 가장 긴 edge를 찾아 yaw를 계산
         """
         edges = []
         n = len(vertices)
@@ -193,7 +220,6 @@ class YoloModel:
             length = math.hypot(dx, dy)
             edges.append({'dx': dx, 'dy': dy, 'length': length})
 
-        # 가장 긴 edge 기준으로 yaw 계산
         longest_edge = max(edges, key=lambda e: e['length'])
         theta = math.atan2(longest_edge['dy'], longest_edge['dx'])
         return theta

@@ -71,65 +71,79 @@ class ObjectDetectionNode(Node):
         )
 
     def handle_get_depth(self, request, response):
-        self.get_logger().info("🔎 [ObjectInformation] Service request received.")
+        self.get_logger().info(f"🔎 [ObjectInformation] Service request received. cancel_name = '{request.cancel_name}'")
 
-        # 이미지 업데이트
         rclpy.spin_once(self.img_node)
-
         detections = self.model.get_best_detection(self.img_node)
-        if not detections:
-            self.get_logger().warn("No detections found. Sending empty response.")
-            result_diff = self.polygon_processor.process(self.img_node.get_color_frame())
-            if result_diff:
-                box = result_diff["box"]
-                cx, cy = int(box[0]), int(box[1])
-                cz = self._get_depth(cx, cy)
+
+        selected_detection = None
+
+        if detections:
+            # cancel_name이 문자열(= 특정 클래스명)로 들어온 경우
+            if request.cancel_name is not None and request.cancel_name != "":
+                for d in detections:
+                    if d["label"] == request.cancel_name:
+                        selected_detection = d
+                        break
+
+            # cancel_name이 None 또는 빈 문자열이면 가장 큰 detection
+            if selected_detection is None:
+                detections = sorted(
+                    detections, key=lambda d: d["box"][2] * d["box"][3], reverse=True
+                )
+                selected_detection = detections[0] if detections else None
+
+        if selected_detection:
+            box = selected_detection["box"]
+            label = selected_detection["label"]
+            cx, cy = int(box[0]), int(box[1])
+            cz = self._get_depth(cx, cy)
+
+            if cz is not None and cz > 0.0:
                 radian = box[4]
                 camera_coords = self._pixel_to_camera_coords(cx, cy, cz)
                 fx = self.intrinsics['fx']
                 min_px = min(box[2], box[3])
                 min_size = (min_px * cz) / fx
+
                 response.position = [float(x) for x in camera_coords] + [float(radian), float(min_size)]
-                response.adult_obj = False
-                response.class_name = "None Class"
-                response.adult_obj = False
+                response.class_name = label
+
+                terra_count = sum(1 for d in detections if d["label"] == "terra")
+                response.adult_obj = terra_count > 0
+
+                self.get_logger().info(f"✅ Response: position={response.position}, class_name={label}, adult_obj={response.adult_obj}")
                 return response
-            
-            response.class_name = "None"
-            response.adult_obj = False
-            return response
+            else:
+                self.get_logger().warn("Invalid depth. Sending empty response.")
+                response.class_name = "None"
+                response.adult_obj = False
+                response.position = []
+                return response
+        else:
+            self.get_logger().warn("No detection found.")
 
-        # 가장 큰 객체 선택
-        detections = sorted(
-            detections, key=lambda d: d["box"][2] * d["box"][3], reverse=True
-        )
-        largest = detections[0]
-        box = largest["box"]
-        label = largest["label"]
-        cx, cy = int(box[0]), int(box[1])
-        cz = self._get_depth(cx, cy)
-
-        self.get_logger().info(f"Detected: {label}, coordi=({cx}, {cy}, {cz})")
-
-        if cz is not None and cz > 0.0:
+        # polygon processor fallback
+        result_diff = self.polygon_processor.process(self.img_node.get_color_frame())
+        if result_diff:
+            box = result_diff["box"]
+            cx, cy = int(box[0]), int(box[1])
+            cz = self._get_depth(cx, cy)
             radian = box[4]
             camera_coords = self._pixel_to_camera_coords(cx, cy, cz)
             fx = self.intrinsics['fx']
             min_px = min(box[2], box[3])
             min_size = (min_px * cz) / fx
-
             response.position = [float(x) for x in camera_coords] + [float(radian), float(min_size)]
-            response.class_name = label
-
-            # terra 객체 개수 세기
-            terra_count = sum(1 for d in detections if d["label"] == "terra")
-            response.adult_obj = terra_count > 0
-
-            self.get_logger().info(f"✅ Response: position={response.position}, class_name={label}, adult_obj={response.adult_obj}")
-        else:
-            self.get_logger().warn("Invalid depth. Sending empty response.")
             response.adult_obj = False
+            response.class_name = "None Class"
+            self.get_logger().info(f"⚠️ Fallback Response: position={response.position}, class_name=None Class")
+            return response
 
+        # polygon processor도 실패 시
+        response.class_name = "None"
+        response.adult_obj = False
+        response.position = []
         return response
 
 def main(args=None):
