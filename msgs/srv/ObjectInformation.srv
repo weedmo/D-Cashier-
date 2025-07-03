@@ -1,0 +1,6 @@
+bool      state_main
+---
+float64[] position
+string    class_name
+bool      adult_obj
+int64     pitch

@@ -1,0 +1,58 @@
+{
+  "bacchus": {
+    "price": 1200,
+    "is_adult_only": false,
+    "expiry_date": "2025-12-31",
+    "is_one_plus_one": false,
+    "discount_rate": 0,
+    "grip_force": 1000
+  },
+  "cham_cracker": {
+    "price": 1000,
+    "is_adult_only": false,
+    "expiry_date": "2025-09-15",
+    "is_one_plus_one": true,
+    "discount_rate": 0,
+    "grip_force": 200
+  },
+  "energy_bar": {
+    "price": 2300,
+    "is_adult_only": false,
+    "expiry_date": "2026-01-01",
+    "is_one_plus_one": false,
+    "discount_rate": 0,
+    "grip_force": 200
+  },
+  "free_time": {
+    "price": 1400,
+    "is_adult_only": false,
+    "expiry_date": "2025-11-20",
+    "is_one_plus_one": false,
+    "discount_rate": 0,
+    "grip_force": 200
+  },
+  "Oereo": {
+    "price": 3600,
+    "is_adult_only": false,
+    "expiry_date": "2025-10-10",
+    "is_one_plus_one": false,
+    "discount_rate": 0,
+    "grip_force": 100
+  },
+  "terra": {
+    "price": 3200,
+    "is_adult_only": true,
+    "expiry_date": "2025-08-30",
+    "is_one_plus_one": true,
+    "discount_rate": 0,
+    "grip_force": 1000
+  },
+  "Yeonyanggang": {
+    "price": 1500,
+    "is_adult_only": false,
+    "expiry_date": "2026-02-15",
+    "is_one_plus_one": false,
+    "discount_rate": 30,
+    "grip_force": 150
+  }
+}
