@@ -95,6 +95,7 @@ class ObjectDetectionNode(Node):
                 response.adult_obj = False
                 return response
             
+            response.class_name = "None"
             response.adult_obj = False
             return response
 
