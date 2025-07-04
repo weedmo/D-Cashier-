@@ -15,7 +15,7 @@ Thanks to these wonderful people who have contributed to this project:
     </td>
     <td align="center">
       <a href="https://github.com/jsbae-RL">
-        <img src="https://github.com/weedmo.png" width="100px;" alt="jsbae-RL"/><br />
+        <img src="https://github.com/jsbae-RL.png" width="100px;" alt="jsbae-RL"/><br />
         <sub><b>jsbae-RL</b></sub>
       </a>
     </td>
