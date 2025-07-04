@@ -12,7 +12,6 @@ from threading import Thread
 from ament_index_python.packages import get_package_share_directory
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSReliabilityPolicy
 
-
 PACKAGE_PATH = get_package_share_directory('gui')
 JSON_PATH = os.path.join(PACKAGE_PATH, 'resource', 'product_data.json')
 
@@ -22,7 +21,12 @@ def _latched_qos(depth: int = 1) -> QoSProfile:
         reliability=QoSReliabilityPolicy.RELIABLE,
         durability=QoSDurabilityPolicy.VOLATILE,
     )
-
+def latched_qos(depth: int = 1) -> QoSProfile:
+    return QoSProfile(
+        depth=depth,
+        reliability=QoSReliabilityPolicy.RELIABLE,
+        durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+    )
 class CashierGUI(Node):
     def __init__(self):
         super().__init__('cashier_gui_node')
@@ -51,7 +55,7 @@ class CashierGUI(Node):
         self.close_btn = tk.Button(btn_frame, text="닫기", command=self.close_window, bg="#e74c3c", fg="white", width=15)
         self.close_btn.grid(row=0, column=0, padx=10)
 
-        self.create_subscription(Int32, "/gui_command", self.gui_command_callback, _latched_qos())
+        self.create_subscription(Int32, "/gui_command", self.gui_command_callback, latched_qos())
         self.create_subscription(String, "/class_name", self.class_name_callback, _latched_qos())
 
     def load_product_data(self, path):

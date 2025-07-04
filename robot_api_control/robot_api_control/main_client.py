@@ -57,7 +57,12 @@ def _latched_qos(depth: int = 1) -> QoSProfile:
         reliability=QoSReliabilityPolicy.RELIABLE,
         durability=QoSDurabilityPolicy.VOLATILE,
     )
-
+def latched_qos(depth: int = 1) -> QoSProfile:
+    return QoSProfile(
+        depth=depth,
+        reliability=QoSReliabilityPolicy.RELIABLE,
+        durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+    )
 class RobotController(Node):
     def __init__(self):
         super().__init__('pick_and_place_controller')
@@ -92,7 +97,7 @@ class RobotController(Node):
 
         # Topics
         self.keyword_sub = self.create_subscription(String, KEYWORD_TOPIC, self.keyword_callback, _latched_qos())
-        self.gui_pub     = self.create_publisher(Int32, GUI_TOPIC, _latched_qos())
+        self.gui_pub     = self.create_publisher(Int32, GUI_TOPIC, latched_qos())
         self.class_pub   = self.create_publisher(String, CLASS_TOPIC, _latched_qos())
 
     # 키워드 콜백
@@ -126,6 +131,7 @@ class RobotController(Node):
         try:
             resp = self.call_obj_detect(True, "none")
             if resp and resp.adult_obj:
+                print(adult_ok)
                 adult_ok = self.call_adult_event(resp.adult_obj)
                 self.gui_pub.publish(Int32(data=3 if adult_ok else 4))
             while not self.stop_event.is_set():
@@ -139,7 +145,10 @@ class RobotController(Node):
                 target_pose = self.get_target_pos(resp.position)
                 force       = 100 if class_name in 'None Class' else self.get_grip_force(class_name)
                 is_bottle = class_name in ("bacchus","terra")
-                goal_pose = BUCKET_POS if class_name != 'None Class' and adult_ok else CANCEL_POS
+                if (adult_ok and class_name == 'terra') or class_name == 'None Class':
+                    goal_pose = CANCEL_POS
+                else:
+                    goal_pose = BUCKET_POS
 
                 self.get_logger().info(f"📍 {class_name} 발견 → 동작 시작")
                 success = self.send_goal(target_pose, goal_pose, size, is_bottle, force)

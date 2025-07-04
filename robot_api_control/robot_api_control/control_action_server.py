@@ -59,6 +59,8 @@ try:
         get_current_posx,
         get_tool_force,
         task_compliance_ctrl,
+        DR_HOLD,
+        #stop,
         
         # force control
         task_compliance_ctrl,
@@ -69,6 +71,7 @@ try:
         release_compliance_ctrl,
         DR_AXIS_Z
     )
+
 except ImportError as e:
     print(f"Error importing DSR_ROBOT2: {e}")
     sys.exit()
@@ -120,7 +123,7 @@ class PickAndPlaceServer(Node):
         feedback.feedback = "init_robot"
         time.sleep(0.5)
         init_wrench = get_tool_force()
-        init_fz     = abs(init_wrench[2])
+        init_fz     = abs(init_wrench[2])- 0.6
         self.get_logger().info(f"🔎 Fz = {init_fz:.2f} N")
         # 1 Move above the object
         self.get_logger().info("▶️ Approach target …")
@@ -192,6 +195,7 @@ class PickAndPlaceServer(Node):
         self.get_logger().info("✋ Cancel request received – accepting …")
         mwait()
         self._init_robot()
+        # stop(DR_HOLD)
         return CancelResponse.ACCEPT
 
     async def _execute_cb(self, goal_handle):

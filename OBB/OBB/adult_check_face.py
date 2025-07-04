@@ -122,7 +122,7 @@ class IDVerificationNode(Node):
             current_roi = gray[self.roi_y:self.roi_y + self.roi_h, self.roi_x:self.roi_x + self.roi_w]
             score, _ = ssim(baseline_original, current_roi, full=True)
 
-            if score < 0.50:
+            if score < 0.45:
                 if hold_start_time is None:
                     hold_start_time = time.time()
                 elif time.time() - hold_start_time >= 2.0:
