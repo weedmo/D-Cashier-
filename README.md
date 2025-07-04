@@ -1,3 +1,14 @@
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![YOLOv11n-OBB](https://img.shields.io/badge/YOLOv11n--OBB-FFB300?style=for-the-badge&logo=python&logoColor=white)
+![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)
+![EasyOCR](https://img.shields.io/badge/EasyOCR-00BCD4?style=for-the-badge&logo=python&logoColor=white)
+![ROS 2 Humble](https://img.shields.io/badge/ROS2--Humble-22314E?style=for-the-badge&logo=ros&logoColor=white)
+![Doosan Robotics API](https://img.shields.io/badge/Doosan--API-0066FF?style=for-the-badge&logo=robotframework&logoColor=white)
+![Doosan M0609](https://img.shields.io/badge/M0609--Robot-0088CC?style=for-the-badge&logo=Roblox&logoColor=white)
+![MoveIt2](https://img.shields.io/badge/MoveIt2-009688?style=for-the-badge&logo=moveit&logoColor=white)
+![Intel RealSense](https://img.shields.io/badge/RealSense--Camera-0071C5?style=for-the-badge&logo=intel&logoColor=white)
+![LangChain](https://img.shields.io/badge/LangChain-4B5563?style=for-the-badge&logo=openai&logoColor=white)
+![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-green?style=for-the-badge)
 
 # D-Cashier-
 # D-Cashier-
