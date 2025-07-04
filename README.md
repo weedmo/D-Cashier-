@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/YOLOv11n--OBB-Custom-orange?logo=darkreader" />
   <img src="https://img.shields.io/badge/Doosan--Manipulator-M0609-critical?logo=robotframework" />
   <img src="https://img.shields.io/badge/Doosan--API-v1.0-success?logo=powerbi" />
-  <img src="https://img.shields.io/badge/MoveIt2-Simulation-informational?logo=autodesk" />
+  <img src="https://img.shields.io/badge/MoveIt2-Humble-informational?logo=autodesk" />
   <img src="https://img.shields.io/badge/RealSense-D435-0071C5?logo=intel" />
   <img src="https://img.shields.io/badge/LangChain-LLM-blueviolet?logo=openai" />
   <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg?logo=apache" />
