@@ -14,6 +14,20 @@
 
 # D-Cashier-
 ---
+
+---
+## 🎥 Demo
+
+<p align="center">
+  <a href="https://youtu.be/oQZS48vI508" target="_blank">
+    <img src="https://img.youtube.com/vi/oQZS48vI508/0.jpg" alt="Demo Video" width="600"/>
+  </a>
+</p>
+
+<p align="center">
+  👉 Click the thumbnail above to watch the demo video on YouTube!
+</p>
+
 ## 👥 Contributors
 
 Thanks to these wonderful people who have contributed to this project:
