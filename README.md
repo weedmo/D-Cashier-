@@ -14,6 +14,37 @@
 
 # D-Cashier-
 ---
+## 🛒 Overview
+
+This project implements a **voice-controlled automated checkout system** for retail environments. Users can initiate and control the checkout process via speech, while the system identifies and processes items using computer vision.
+---
+
+### 🎯 Key Features
+
+- ✅ **YOLO-Based Object Detection + Product Database Matching**  
+  - Detects items in real-time using a camera and the YOLO model  
+  - Matches detected items with a predefined JSON database to retrieve **product name, price, and category**
+
+- 🚫 **Handling Undetected or Unknown Items (Cancel Position)**  
+  - Items not detected by YOLO or not found in the database are automatically placed in a **"Cancel Position"**  
+  - Prevents false charges and prompts user re-verification
+
+- 🔞 **Adult Verification for Restricted Items**  
+  - For age-restricted items (e.g., alcohol, cigarettes), the system verifies the user’s age by combining  
+    **ID card OCR** and **face recognition matching**
+
+- 🗣 **Voice-Based Interaction (Input & Feedback)**  
+  - Users can issue natural language commands such as “Start checkout”, “Remove this”, or “Add this”  
+  - Items can be **added or removed freely during the checkout process**
+
+- 🖥️ **Real-Time GUI and Voice Feedback**  
+  - The system provides real-time updates on actions (e.g., “Tofu added”, “Adult verification required”)  
+  - Feedback is delivered **both visually via GUI and audibly via text-to-speech**
+
+---
+
+This system offers an **intuitive and flexible solution** for smart retail environments,  
+suitable for integration into unmanned checkout counters, convenience stores, and automated kiosks.
 
 ---
 ## 🎥 Demo
