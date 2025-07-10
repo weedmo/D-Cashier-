@@ -39,8 +39,8 @@ This system enables users to interact entirely through voice, while products are
 ## 🔄 System Architecture
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/d00baefa-ddab-47a7-8af0-e556145e6e24" width="28%" style="margin-right: 1%;" />
-  <img src="https://github.com/user-attachments/assets/a1e296fb-d3d4-433d-b567-8fa027643bd4" width="48%" style="margin-left: 1%;" />
+  <img src="https://github.com/user-attachments/assets/d00baefa-ddab-47a7-8af0-e556145e6e24" width="38%" style="margin-right: 1%;" />
+  <img src="https://github.com/user-attachments/assets/a1e296fb-d3d4-433d-b567-8fa027643bd4" width="58%" style="margin-left: 1%;" />
 </p>
 
 
