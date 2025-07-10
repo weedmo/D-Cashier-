@@ -69,7 +69,7 @@ This system enables users to interact entirely through voice, while products are
   Polygon vertices are averaged across frames to improve yaw estimation.  
 
   <p align="center">
-    <img src="https://github.com/user-attachments/assets/4f12acba-6f9c-4920-88b6-de133854c6db" width="70%" />
+    <img src="https://github.com/user-attachments/assets/4f12acba-6f9c-4920-88b6-de133854c6db" width="60%" />
   </p>
 
 - **② Background Subtraction + Cancel Position Handling**  
@@ -77,7 +77,7 @@ This system enables users to interact entirely through voice, while products are
   Detected unknown objects are moved to a **Cancel Position** to prevent false charges.
 
   <p align="center">
-    <img src="https://github.com/user-attachments/assets/5e0055c8-21f1-42b7-8a52-5c9d880f92e5" width="70%" />
+    <img src="https://github.com/user-attachments/assets/5e0055c8-21f1-42b7-8a52-5c9d880f92e5" width="60%" />
   </p>
 
 - **③ Adult Verification (19+ Restricted Items)**  
