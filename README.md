@@ -14,38 +14,11 @@
 
 # D-Cashier-
 ---
-## 🛒 Overview
+## 📌 System Overview
 
-This project implements a **voice-controlled automated checkout system** for retail environments. Users can initiate and control the checkout process via speech, while the system identifies and processes items using computer vision.
----
+The **D-Cashier** project is a smart, voice-controlled automated checkout system designed for retail environments such as convenience stores or unmanned kiosks. It integrates object detection, voice interface, and robotic manipulation to streamline the checkout process.
 
-### 🎯 Key Features
-
-- ✅ **YOLO-Based Object Detection + Product Database Matching**  
-  - Detects items in real-time using a camera and the YOLO model  
-  - Matches detected items with a predefined JSON database to retrieve **product name, price, and category**
-
-- 🚫 **Handling Undetected or Unknown Items (Cancel Position)**  
-  - Items not detected by YOLO or not found in the database are automatically placed in a **"Cancel Position"**  
-  - Prevents false charges and prompts user re-verification
-
-- 🔞 **Adult Verification for Restricted Items**  
-  - For age-restricted items (e.g., alcohol, cigarettes), the system verifies the user’s age by combining  
-    **ID card OCR** and **face recognition matching**
-
-- 🗣 **Voice-Based Interaction (Input & Feedback)**  
-  - Users can issue natural language commands such as “Start checkout”, “Remove this”, or “Add this”  
-  - Items can be **added or removed freely during the checkout process**
-
-- 🖥️ **Real-Time GUI and Voice Feedback**  
-  - The system provides real-time updates on actions (e.g., “Tofu added”, “Adult verification required”)  
-  - Feedback is delivered **both visually via GUI and audibly via text-to-speech**
-
----
-
-This system offers an **intuitive and flexible solution** for smart retail environments,  
-suitable for integration into unmanned checkout counters, convenience stores, and automated kiosks.
-
+This system enables users to interact entirely through voice, while products are recognized and processed using a YOLOv11n-OBB-based vision module. Unrecognized items are automatically handled via a “Cancel Position,” and restricted goods are verified through OCR and face recognition.
 ---
 ## 🎥 Demo
 
@@ -58,7 +31,49 @@ suitable for integration into unmanned checkout counters, convenience stores, an
 <p align="center">
   👉 Click the thumbnail above to watch the demo video on YouTube!
 </p>
+---
 
+## 🔧 Core Achievements
+
+- 🌀 **Multi-frame Object Detection + Rotation Estimation**  
+  → Implemented a custom post-processing algorithm for YOLOv11n-OBB  
+  → Achieved **±3° yaw error margin**
+
+- ⏱ **Voice Interface with Real-Time GUI + TTS Feedback**  
+  → System response time maintained under **1 second**
+
+- ❌ **“Cancel Position” Handling for Undetected Items**  
+  → Reduced false detection issues by over **40%**
+
+---
+
+## 🧠 System Architecture
+
+- **YOLOv11n-OBB Detection Node**
+  - Detects items and estimates rotation (yaw)
+  - Performs multi-frame averaging and post-processing
+  - Outputs object pose for robot manipulation
+
+- **Speech Interface Node**
+  - Wake-up detection ("Hello Rokey")
+  - Converts speech to text using OpenAI Whisper
+  - Intent classification via GPT-4o (LangChain)
+
+- **GUI + Voice Feedback**
+  - Dynamic UI updates (cart, total price, alerts)
+  - Text-to-speech voice announcements (OpenAI TTS)
+
+- **Robot Control Node**
+  - Pose conversion (camera to robot base)
+  - Pick & Place execution via Doosan API
+  - Compliant grasping with force sensors (RG2 gripper)
+
+- **Cancel & Safety Handling**
+  - Allows command-based canceling of current goal
+  - Lookup and move to cancel position safely
+  - Uses multithreading to handle interruption requests
+
+---
 ## 👥 Contributors
 
 Thanks to these wonderful people who have contributed to this project:
