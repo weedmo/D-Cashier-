@@ -63,22 +63,32 @@ This system enables users to interact entirely through voice, while products are
 
 ### 🔍 Key Functional Features
 
+
 - **① YOLOv11n-OBB Object Detection**  
   Detects objects and estimates their 3D position + orientation `[x, y, z, yaw]` using oriented bounding boxes.  
   Polygon vertices are averaged across frames to improve yaw estimation.  
-![image](https://github.com/user-attachments/assets/4f12acba-6f9c-4920-88b6-de133854c6db)
+
+  <p align="center">
+    <img src="https://github.com/user-attachments/assets/4f12acba-6f9c-4920-88b6-de133854c6db" width="70%" />
+  </p>
 
 - **② Background Subtraction + Cancel Position Handling**  
   If YOLO fails to detect an object, the system compares the current frame with a pre-stored background image to locate unexpected items.  
   Detected unknown objects are moved to a **Cancel Position** to prevent false charges.
-![image](https://github.com/user-attachments/assets/5e0055c8-21f1-42b7-8a52-5c9d880f92e5)
+
+  <p align="center">
+    <img src="https://github.com/user-attachments/assets/5e0055c8-21f1-42b7-8a52-5c9d880f92e5" width="70%" />
+  </p>
 
 - **③ Adult Verification (19+ Restricted Items)**  
   When a restricted item is detected (e.g., alcohol, cigarettes), the system:
   - Uses OCR to extract birth date from a captured ID card  
   - Matches the face from the ID with the user’s face in front of the camera  
   - Grants or denies approval based on age + match score
-![image](https://github.com/user-attachments/assets/15c4903c-4b21-4fbe-8fc0-876b673caaaa)
+
+  <p align="center">
+    <img src="https://github.com/user-attachments/assets/15c4903c-4b21-4fbe-8fc0-876b673caaaa" width="60%" />
+  </p>
 
 - **④ Voice-Controlled Interface with GUI Feedback**
   - Wake-up word detection: `"Hello Rokey"`  
