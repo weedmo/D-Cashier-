@@ -36,7 +36,8 @@ This system enables users to interact entirely through voice, while products are
 
 ---
 
-## 🔄 System Flow
+## 🔄 System Architecture
+
 <p align="center">
   <img src="https://github.com/user-attachments/assets/d00baefa-ddab-47a7-8af0-e556145e6e24" width="28%" style="margin-right: 1%;" />
   <img src="https://github.com/user-attachments/assets/a1e296fb-d3d4-433d-b567-8fa027643bd4" width="48%" style="margin-left: 1%;" />
@@ -57,33 +58,61 @@ This system enables users to interact entirely through voice, while products are
 - ❌ **“Cancel Position” Handling for Undetected Items**  
   → Reduced false detection issues by over **40%**
 
+
 ---
 
-## 🧠 System Architecture
+### 🔍 Key Functional Features
 
-- **YOLOv11n-OBB Detection Node**
-  - Detects items and estimates rotation (yaw)
-  - Performs multi-frame averaging and post-processing
-  - Outputs object pose for robot manipulation
+- **① YOLOv11n-OBB Object Detection**  
+  Detects objects and estimates their 3D position + orientation `[x, y, z, yaw]` using oriented bounding boxes.  
+  Polygon vertices are averaged across frames to improve yaw estimation.  
 
-- **Speech Interface Node**
-  - Wake-up detection ("Hello Rokey")
-  - Converts speech to text using OpenAI Whisper
-  - Intent classification via GPT-4o (LangChain)
+- **② Background Subtraction + Cancel Position Handling**  
+  If YOLO fails to detect an object, the system compares the current frame with a pre-stored background image to locate unexpected items.  
+  Detected unknown objects are moved to a **Cancel Position** to prevent false charges.
 
-- **GUI + Voice Feedback**
-  - Dynamic UI updates (cart, total price, alerts)
-  - Text-to-speech voice announcements (OpenAI TTS)
+- **③ Adult Verification (19+ Restricted Items)**  
+  When a restricted item is detected (e.g., alcohol, cigarettes), the system:
+  - Uses OCR to extract birth date from a captured ID card  
+  - Matches the face from the ID with the user’s face in front of the camera  
+  - Grants or denies approval based on age + match score
 
-- **Robot Control Node**
-  - Pose conversion (camera to robot base)
-  - Pick & Place execution via Doosan API
-  - Compliant grasping with force sensors (RG2 gripper)
+- **④ Voice-Controlled Interface with GUI Feedback**
+  - Wake-up word detection: `"Hello Rokey"`  
+  - Natural language input via OpenAI Whisper  
+  - Intent parsing via **LangChain + GPT-4o**  
+  - Real-time GUI update + TTS output using OpenAI voice
 
-- **Cancel & Safety Handling**
-  - Allows command-based canceling of current goal
-  - Lookup and move to cancel position safely
-  - Uses multithreading to handle interruption requests
+---
+
+### 🤖 Vision-to-Robot Conversion + Manipulation
+
+- **Pose Conversion**
+  - Converts YOLO’s `[x, y, z, yaw]` to robot base coordinates `[x, y, z, rx, ry, rz]`
+  - Uses `T_gripper2camera.npy` and external calibration parameters for accurate transform
+  - Adjusts gripper width based on object size (e.g., `min_side × 10 - 50`)
+  - Pick action is executed with Doosan’s `movel()` API
+
+- **Cancel Preemption (Stop & Retry)**
+  - User can say "정지" or "Remove [item]" → current goal is canceled
+  - Robot switches to cancel pose using a **custom CancelObject service**
+  - Uses `MultiThreadedExecutor` to handle cancel requests concurrently with execution
+
+- **Force-Sensitive Grasping**
+  - Grasp failure is detected when `|Fz|` force remains unchanged after closure
+  - For fragile items (bottles, cans), **compliance control** is used:
+    - Applies downward force (e.g., 15N @ Z-axis)
+    - Releases when force drops below threshold (e.g., <10N)
+  - Logs all force values and errors for safety validation
+
+---
+
+### 🧰 Tools & Libraries Used
+
+- YOLOv11n-OBB, Roboflow, OpenCV Calibration, NumPy, SciPy
+- ROS 2 rclpy (Humble), OpenAI Whisper/TTS, LangChain, Tkinter
+- Doosan API (`movel`, `get_current_posx`, force sensor API)
+- OnRobot RG2 Gripper (adaptive width, force sensing)
 
 ---
 ## 👥 Contributors
