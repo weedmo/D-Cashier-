@@ -19,7 +19,9 @@
 The **D-Cashier** project is a smart, voice-controlled automated checkout system designed for retail environments such as convenience stores or unmanned kiosks. It integrates object detection, voice interface, and robotic manipulation to streamline the checkout process.
 
 This system enables users to interact entirely through voice, while products are recognized and processed using a YOLOv11n-OBB-based vision module. Unrecognized items are automatically handled via a “Cancel Position,” and restricted goods are verified through OCR and face recognition.
+
 ---
+
 ## 🎥 Demo
 
 <p align="center">
@@ -31,6 +33,14 @@ This system enables users to interact entirely through voice, while products are
 <p align="center">
   👉 Click the thumbnail above to watch the demo video on YouTube!
 </p>
+
+---
+
+## 🔄 System Flow
+![image](https://github.com/user-attachments/assets/d00baefa-ddab-47a7-8af0-e556145e6e24)
+![image](https://github.com/user-attachments/assets/a1e296fb-d3d4-433d-b567-8fa027643bd4)
+
+
 ---
 
 ## 🔧 Core Achievements
