@@ -106,15 +106,6 @@ This system enables users to interact entirely through voice, while products are
   - Logs all force values and errors for safety validation
 
 ---
-
-### 🧰 Tools & Libraries Used
-
-- YOLOv11n-OBB, Roboflow, OpenCV Calibration, NumPy, SciPy
-- ROS 2 rclpy (Humble), OpenAI Whisper/TTS, LangChain, Tkinter
-- Doosan API (`movel`, `get_current_posx`, force sensor API)
-- OnRobot RG2 Gripper (adaptive width, force sensing)
-
----
 ## 👥 Contributors
 
 Thanks to these wonderful people who have contributed to this project:
