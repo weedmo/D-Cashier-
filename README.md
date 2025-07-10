@@ -124,6 +124,14 @@ This system enables users to interact entirely through voice, while products are
   - Logs all force values and errors for safety validation
 
 ---
+
+## 📄 Documentation
+
+For a detailed explanation of this project, please refer to the following document:
+
+👉 [docs](docs/F-1_협동2_한준모_배재성_김동호_김예신(중도포기).pdf)
+
+---
 ## 👥 Contributors
 
 Thanks to these wonderful people who have contributed to this project:
