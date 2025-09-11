@@ -23,10 +23,9 @@ This system enables users to interact entirely through voice, while products are
 ---
 
 ## 🎥 Demo
-
 <p align="center">
-  <a href="https://youtu.be/oQZS48vI508" target="_blank">
-    <img src="https://img.youtube.com/vi/oQZS48vI508/0.jpg" alt="Demo Video" width="600"/>
+  <a href="https://www.youtube.com/watch?v=7Gpf3X2yl90" target="_blank">
+    <img src="https://img.youtube.com/vi/7Gpf3X2yl90/0.jpg" alt="Demo Video" width="600"/>
   </a>
 </p>
 
