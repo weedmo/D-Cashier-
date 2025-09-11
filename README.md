@@ -122,6 +122,10 @@ This system enables users to interact entirely through voice, while products are
     - Releases when force drops below threshold (e.g., <10N)
   - Logs all force values and errors for safety validation
 
+
+https://github.com/user-attachments/assets/6706d992-c1b4-49d3-9fdb-8f2bd2f56804
+
+
 ---
 
 ## 📄 Documentation
